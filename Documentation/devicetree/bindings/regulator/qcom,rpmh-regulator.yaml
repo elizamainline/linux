@@ -65,6 +65,7 @@ description: |
       For PMX55, smps1 - smps7, ldo1 - ldo16
       For PMX65, smps1 - smps8, ldo1 - ldo21
       For PMX75, smps1 - smps10, ldo1 - ldo21
+      For PMXR2230, smps1 - smps4, ldo1 - ldo2, ldo4 - ldo23, bob
 
 properties:
   compatible:
@@ -108,6 +109,7 @@ properties:
       - qcom,pmx55-rpmh-regulators
       - qcom,pmx65-rpmh-regulators
       - qcom,pmx75-rpmh-regulators
+      - qcom,pmxr2230-rpmh-regulators
 
   qcom,pmic-id:
     description: |
@@ -254,6 +256,24 @@ allOf:
       patternProperties:
         "^vdd-l(1|[6-8]|11)-supply$": true
         "^vdd-s[1-6]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pmxr2230-rpmh-regulators
+    then:
+      properties:
+        vdd-bob-supply:
+          description: BOB regulator parent supply phandle.
+        vdd-l4-l5-supply: true
+        vdd-l9-l10-supply: true
+        vdd-l12-l14-supply: true
+        vdd-l13-l16-supply: true
+        vdd-l15-l17-l18-l19-l20-l21-l22-l23-supply: true
+      patternProperties:
+        "^vdd-l(1|2|[6-8]|11)-supply$": true
+        "^vdd-s[1-4]-supply$": true
 
   - if:
       properties:
