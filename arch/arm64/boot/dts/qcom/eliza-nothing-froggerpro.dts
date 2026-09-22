@@ -14,6 +14,7 @@
 #include "eliza.dtsi"
 #include "pm7550-eliza.dtsi"
 #include "pmk8550-eliza.dtsi"
+#include "pm8550vs-d-eliza.dtsi"
 #include "pmr735d-eliza.dtsi"
 
 / {
@@ -126,7 +127,9 @@
 		vdd-s2-supply = <&vph_pwr>;
 		vdd-s3-supply = <&vph_pwr>;
 		vdd-l4-l5-supply = <&vreg_s2b>;
+		vdd-l6-supply = <&vreg_s2b>;
 		vdd-l7-supply = <&vreg_s1b>;
+		vdd-l12-l14-supply = <&vreg_bob>;
 		vdd-l15-l17-l18-l19-l20-l21-l22-l23-supply = <&vreg_bob>;
 		vdd-bob-supply = <&vph_pwr>;
 
@@ -160,10 +163,24 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		vreg_l6b: ldo6 {
+			regulator-name = "vreg_l6b";
+			regulator-min-microvolt = <866000>;
+			regulator-max-microvolt = <958000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
 		vreg_l7b: ldo7 {
 			regulator-name = "vreg_l7b";
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <2000000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l12b: ldo12 {
+			regulator-name = "vreg_l12b";
+			regulator-min-microvolt = <2400000>;
+			regulator-max-microvolt = <3300000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -193,6 +210,21 @@
 			regulator-name = "vreg_l7k";
 			regulator-min-microvolt = <720000>;
 			regulator-max-microvolt = <958000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+	};
+
+	regulators-2 {
+		compatible = "qcom,pm8550vs-rpmh-regulators";
+
+		vdd-l1-supply = <&vreg_s2b>;
+
+		qcom,pmic-id = "d";
+
+		vreg_l1d: ldo1 {
+			regulator-name = "vreg_l1d";
+			regulator-min-microvolt = <1140000>;
+			regulator-max-microvolt = <1260000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
@@ -267,6 +299,24 @@
 
 &uart13 {
 	compatible = "qcom,geni-debug-uart";
+
+	status = "okay";
+};
+
+&ufs_mem_hc {
+	reset-gpios = <&tlmm 185 GPIO_ACTIVE_LOW>;
+
+	vcc-supply = <&vreg_l12b>;
+	vcc-max-microamp = <1300000>;
+	vccq-supply = <&vreg_l1d>;
+	vccq-max-microamp = <1200000>;
+
+	status = "okay";
+};
+
+&ufs_mem_phy {
+	vdda-phy-supply = <&vreg_l6b>;
+	vdda-pll-supply = <&vreg_l4b>;
 
 	status = "okay";
 };
