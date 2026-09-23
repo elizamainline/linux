@@ -306,6 +306,10 @@
 	status = "okay";
 };
 
+&adspslpi_mem {
+	reg = <0x0 0x99e00000 0x0 0x4a00000>;
+};
+
 &remoteproc_adsp {
 	firmware-name = "qcom/sm7750/nothing/froggerpro/adsp.mbn",
 			"qcom/sm7750/nothing/froggerpro/adsp_dtb.mbn";
