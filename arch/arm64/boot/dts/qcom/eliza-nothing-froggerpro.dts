@@ -140,6 +140,12 @@
 		};
 	};
 
+	pmic-glink {
+		compatible = "qcom,eliza-pmic-glink",
+			     "qcom,sm8550-pmic-glink",
+			     "qcom,pmic-glink";
+	};
+
 	reserved-memory {
 		framebuffer@fc800000 {
 			reg = <0x0 0xfc800000 0x0 (1260 * 2800 * 4)>;
@@ -296,6 +302,13 @@
 
 &pon_resin {
 	linux,code = <KEY_VOLUMEDOWN>;
+
+	status = "okay";
+};
+
+&remoteproc_adsp {
+	firmware-name = "qcom/sm7750/nothing/froggerpro/adsp.mbn",
+			"qcom/sm7750/nothing/froggerpro/adsp_dtb.mbn";
 
 	status = "okay";
 };
