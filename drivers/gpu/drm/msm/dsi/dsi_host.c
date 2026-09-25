@@ -142,6 +142,7 @@ struct msm_dsi_host {
 
 	struct completion dma_comp;
 	struct completion video_comp;
+	unsigned int dma_trace_count;
 	struct mutex dev_mutex;
 	struct mutex cmd_mutex;
 	spinlock_t intr_lock; /* Protect interrupt ctrl register */
@@ -383,6 +384,7 @@ int msm_dsi_runtime_resume(struct device *dev)
 int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 {
 	unsigned long byte_intf_clk_rate;
+	long rounded_pixel_clk_rate;
 	long rounded_byte_clk_rate;
 	int ret;
 
@@ -395,16 +397,28 @@ int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 	}
 
 	msm_host->byte_clk_rate = rounded_byte_clk_rate;
-
-	DBG("Set clk rates: pclk=%lu, byteclk=%lu",
-	    msm_host->pixel_clk_rate, msm_host->byte_clk_rate);
-
 	ret = dev_pm_opp_set_rate(&msm_host->pdev->dev,
 				  msm_host->byte_clk_rate);
 	if (ret) {
 		pr_err("%s: dev_pm_opp_set_rate failed %d\n", __func__, ret);
 		return ret;
 	}
+
+	rounded_pixel_clk_rate = clk_round_rate(msm_host->pixel_clk,
+						msm_host->pixel_clk_rate);
+	if (rounded_pixel_clk_rate < 0) {
+		pr_err("%s: failed to round pixel clock rate, %ld\n",
+		       __func__, rounded_pixel_clk_rate);
+		return rounded_pixel_clk_rate;
+	}
+
+	if (rounded_pixel_clk_rate != msm_host->pixel_clk_rate)
+		dev_info(&msm_host->pdev->dev, "rounded pixel clock %lu -> %ld Hz\n",
+			 msm_host->pixel_clk_rate, rounded_pixel_clk_rate);
+
+	msm_host->pixel_clk_rate = rounded_pixel_clk_rate;
+	DBG("Set clk rates: pclk=%lu, byteclk=%lu",
+	    msm_host->pixel_clk_rate, msm_host->byte_clk_rate);
 
 	ret = clk_set_rate(msm_host->pixel_clk, msm_host->pixel_clk_rate);
 	if (ret) {
@@ -1439,7 +1453,24 @@ int dsi_dma_base_get_v2(struct msm_dsi_host *msm_host, uint64_t *dma_base)
 	return 0;
 }
 
-static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
+static void dsi_cmd_dma_log_state(struct msm_dsi_host *msm_host,
+				  const char *phase, const struct mipi_dsi_msg *msg)
+{
+	dev_info(&msm_host->pdev->dev,
+		 "cmd %u %s: type=%#x data0=%#x status=%#x fifo=%#x lane=%#x phyerr=%#x clk=%#x intr=%#x dma=%#x\n",
+		 msm_host->dma_trace_count, phase, msg->type,
+		 *(const u8 *)msg->tx_buf,
+		 dsi_read(msm_host, REG_DSI_STATUS0),
+		 dsi_read(msm_host, REG_DSI_FIFO_STATUS),
+		 dsi_read(msm_host, REG_DSI_LANE_STATUS),
+		 dsi_read(msm_host, REG_DSI_DLN0_PHY_ERR),
+		 dsi_read(msm_host, REG_DSI_CLK_STATUS),
+		 dsi_read(msm_host, REG_DSI_INTR_CTRL),
+		 dsi_read(msm_host, REG_DSI_CMD_DMA_CTRL));
+}
+
+static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host,
+			  const struct mipi_dsi_msg *msg, int len)
 {
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
 	int ret;
@@ -1455,6 +1486,9 @@ static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 	reinit_completion(&msm_host->dma_comp);
 
 	dsi_wait4video_eng_busy(msm_host);
+	msm_host->dma_trace_count++;
+	if (msm_host->dma_trace_count <= 3)
+		dsi_cmd_dma_log_state(msm_host, "before", msg);
 
 	triggered = msm_dsi_manager_cmd_xfer_trigger(
 						msm_host->id, dma_base, len);
@@ -1462,13 +1496,22 @@ static int dsi_cmd_dma_tx(struct msm_dsi_host *msm_host, int len)
 		ret = wait_for_completion_timeout(&msm_host->dma_comp,
 					msecs_to_jiffies(200));
 		DBG("ret=%d", ret);
-		if (ret == 0)
+		if (ret == 0) {
+			dev_err_ratelimited(&msm_host->pdev->dev,
+				"cmd DMA timeout: ctrl=%#x status=%#x intr=%#x clk=%#x\n",
+				dsi_read(msm_host, REG_DSI_CTRL),
+				dsi_read(msm_host, REG_DSI_STATUS0),
+				dsi_read(msm_host, REG_DSI_INTR_CTRL),
+				dsi_read(msm_host, REG_DSI_CLK_STATUS));
 			ret = -ETIMEDOUT;
-		else
+		} else {
 			ret = len;
+		}
 	} else {
 		ret = len;
 	}
+	if (msm_host->dma_trace_count <= 3 || ret == -ETIMEDOUT)
+		dsi_cmd_dma_log_state(msm_host, "after", msg);
 
 	return ret;
 }
@@ -1552,7 +1595,7 @@ static int dsi_cmds2buf_tx(struct msm_dsi_host *msm_host,
 		return -EINVAL;
 	}
 
-	ret = dsi_cmd_dma_tx(msm_host, len);
+	ret = dsi_cmd_dma_tx(msm_host, msg, len);
 	if (ret < 0) {
 		pr_err("%s: cmd dma tx failed, type=0x%x, data0=0x%x, len=%d, ret=%d\n",
 			__func__, msg->type, (*(u8 *)(msg->tx_buf)), len, ret);
@@ -2532,6 +2575,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 	dsi_sw_reset(msm_host);
 	dsi_ctrl_enable(msm_host, phy_shared_timings, phy);
 
+	msm_host->dma_trace_count = 0;
 	msm_host->power_on = true;
 	mutex_unlock(&msm_host->dev_mutex);
 
