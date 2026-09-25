@@ -400,6 +400,14 @@
 	reg = <0x0 0x99e00000 0x0 0x4a00000>;
 };
 
+&gpu {
+	status = "okay";
+};
+
+&gpu_zap_shader {
+	firmware-name = "qcom/sm7750/nothing/froggerpro/gen70e00_zap.mbn";
+};
+
 &remoteproc_adsp {
 	firmware-name = "qcom/sm7750/nothing/froggerpro/adsp.mbn",
 			"qcom/sm7750/nothing/froggerpro/adsp_dtb.mbn";
