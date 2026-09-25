@@ -77,6 +77,17 @@ config DRM_PANEL_BOE_HIMAX8279D
 	  24 bit RGB per pixel. It provides a MIPI DSI interface to
 	  the host and has a built-in LED backlight.
 
+config DRM_PANEL_BOE_RM69260
+	tristate "BOE RM69260 panel for Nothing Phone (4a) Pro"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select DRM_DISPLAY_DSC_HELPER
+	select DRM_DISPLAY_HELPER
+	help
+	  Say Y here to enable the 1260x2800 AMOLED panel used in the
+	  Nothing Phone (4a) Pro.
+
 config DRM_PANEL_BOE_TD4320
 	tristate "BOE TD4320 DSI panel"
 	depends on OF
