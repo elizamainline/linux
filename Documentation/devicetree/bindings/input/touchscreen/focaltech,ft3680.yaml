@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/focaltech,ft3680.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: FocalTech FT3680 and FT3683G SPI touchscreen controllers
+
+maintainers:
+  - Danila Tikhonov <danila@jiaxyga.com>
+
+allOf:
+  - $ref: touchscreen.yaml#
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+properties:
+  compatible:
+    enum:
+      - focaltech,ft3680
+      - focaltech,ft3683g
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  vdd-supply:
+    description: Controller analog supply
+
+  iovcc-supply:
+    description: Controller I/O supply
+
+  firmware-name:
+    description: PRAM firmware file for FT3680
+
+  spi-max-frequency: true
+  touchscreen-size-x: true
+  touchscreen-size-y: true
+  touchscreen-inverted-x: true
+  touchscreen-inverted-y: true
+  touchscreen-swapped-x-y: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - reset-gpios
+  - vdd-supply
+  - iovcc-supply
+  - touchscreen-size-x
+  - touchscreen-size-y
+
+unevaluatedProperties: false
+
+if:
+  properties:
+    compatible:
+      const: focaltech,ft3680
+then:
+  required:
+    - firmware-name
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchscreen@0 {
+            compatible = "focaltech,ft3683g";
+            reg = <0>;
+            spi-max-frequency = <12000000>;
+            interrupt-parent = <&gpio>;
+            interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+            reset-gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
+            vdd-supply = <&vdd_ts>;
+            iovcc-supply = <&iovcc_ts>;
+            touchscreen-size-x = <1260>;
+            touchscreen-size-y = <2800>;
+        };
+    };
+...
