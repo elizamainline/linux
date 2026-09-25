@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/boe,rm69260-froggerpro.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: BOE RM69260 AMOLED panel for the Nothing Phone (4a) Pro
+
+maintainers:
+  - Oleksii Onchul <oleksiionchul@gmail.com>
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    const: boe,rm69260-froggerpro
+
+  reg:
+    maxItems: 1
+
+  vddio-supply:
+    description: 1.8 V panel I/O supply
+
+  dvdd-supply:
+    description: 1.8 V panel digital supply
+
+  vci-supply:
+    description: 3.0 V panel analog supply
+
+  reset-gpios:
+    maxItems: 1
+
+  pinctrl-0: true
+
+  pinctrl-names:
+    const: default
+
+  port: true
+
+required:
+  - compatible
+  - reg
+  - vddio-supply
+  - dvdd-supply
+  - vci-supply
+  - reset-gpios
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        panel@0 {
+            compatible = "boe,rm69260-froggerpro";
+            reg = <0>;
+            vddio-supply = <&vddio>;
+            dvdd-supply = <&dvdd>;
+            vci-supply = <&vci>;
+            reset-gpios = <&tlmm 12 GPIO_ACTIVE_LOW>;
+
+            port {
+                panel_in: endpoint {
+                    remote-endpoint = <&dsi_out>;
+                };
+            };
+        };
+    };
+...
