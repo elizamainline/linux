@@ -6,6 +6,8 @@
 #ifndef ATH11K_AHB_H
 #define ATH11K_AHB_H
 
+#include <linux/regulator/consumer.h>
+
 #include "core.h"
 
 #define ATH11K_AHB_RECOVERY_TIMEOUT (3 * HZ)
@@ -23,6 +25,8 @@ struct ath11k_base;
 
 struct ath11k_ahb {
 	struct rproc *tgt_rproc;
+	struct regulator_bulk_data *vregs;
+	int num_vregs;
 	struct {
 		struct device *dev;
 		struct iommu_domain *iommu_domain;
