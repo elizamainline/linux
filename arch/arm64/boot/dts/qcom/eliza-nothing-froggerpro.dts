@@ -136,6 +136,15 @@
 	reg = <0x0 0x99e00000 0x0 0x4a00000>;
 };
 
+&remoteproc_wpss {
+	firmware-name = "qca6750/wpss.mbn";
+	status = "okay";
+};
+
+&wifi {
+	status = "okay";
+};
+
 &apps_rsc {
 	regulators-0 {
 		compatible = "qcom,pm7550-rpmh-regulators";
