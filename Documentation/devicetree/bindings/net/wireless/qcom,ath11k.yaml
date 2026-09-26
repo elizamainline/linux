@@ -41,6 +41,12 @@ properties:
         * reg
         * reg-names
 
+  qcom,skip-cal-data:
+    type: boolean
+    description:
+      The WLAN firmware does not need a separate calibration data download
+      after the binary board data is sent over QMI.
+
   qcom,calibration-variant:
     $ref: /schemas/types.yaml#/definitions/string
     description:
