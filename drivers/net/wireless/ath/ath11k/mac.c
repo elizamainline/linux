@@ -10736,6 +10736,12 @@ int ath11k_mac_register(struct ath11k_base *ab)
 			ar->mac_addr[4] += i;
 		}
 
+		if (!is_valid_ether_addr(ar->mac_addr)) {
+			eth_random_addr(ar->mac_addr);
+			ath11k_warn(ab, "no valid MAC address for radio %d, using random address %pM\n",
+				    i, ar->mac_addr);
+		}
+
 		idr_init(&ar->txmgmt_idr);
 		spin_lock_init(&ar->txmgmt_idr_lock);
 
