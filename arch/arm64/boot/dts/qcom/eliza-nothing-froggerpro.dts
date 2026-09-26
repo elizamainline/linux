@@ -141,6 +141,15 @@
 	};
 };
 
+&remoteproc_wpss {
+	firmware-name = "qca6750/wpss.mbn";
+	status = "okay";
+};
+
+&wifi {
+	status = "okay";
+};
+
 &apps_rsc {
 	regulators-0 {
 		compatible = "qcom,pmxr2230-rpmh-regulators";
