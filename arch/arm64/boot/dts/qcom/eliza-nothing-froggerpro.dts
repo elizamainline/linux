@@ -147,6 +147,12 @@
 };
 
 &wifi {
+	vdd-cx-mx-supply = <&vreg_s3b>;
+	vdd-1.8-xo-supply = <&vreg_s1b>;
+	vdd-1.3-rfa-supply = <&vreg_s2b>;
+	vdd-1.8-io-supply = <&vreg_l11b>;
+	pinctrl-0 = <&wifi_sw_ctrl>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -160,6 +166,7 @@
 		vdd-l4-l5-supply = <&vreg_s2b>;
 		vdd-l6-supply = <&vreg_s2b>;
 		vdd-l7-supply = <&vreg_s1b>;
+		vdd-l11-supply = <&vreg_s1b>;
 		vdd-l12-l14-supply = <&vreg_bob>;
 		vdd-l15-l17-l18-l19-l20-l21-l22-l23-supply = <&vreg_bob>;
 		vdd-bob-supply = <&vph_pwr>;
@@ -222,6 +229,13 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 			regulator-boot-on;
 			regulator-always-on;
+		};
+
+		vreg_l11b: ldo11 {
+			regulator-name = "vreg_l11b";
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_l12b: ldo12 {
@@ -454,6 +468,11 @@
 	gpio-reserved-ranges = <20 4>,   /* NFC SPI */
 			       <111 2>,  /* WCN UART1 */
 			       <118 1>;  /* NFC Secure I/O */
+
+	wifi_sw_ctrl: wifi-sw-ctrl-state {
+		pins = "gpio81";
+		function = "wcn_sw_ctrl";
+	};
 
 	qup_spi8_gpio_cs: qup-spi8-gpio-cs-state {
 		pins = "gpio3";
