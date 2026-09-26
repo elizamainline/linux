@@ -1504,8 +1504,8 @@ static const struct adreno_info a7xx_gpus[] = {
 		.chip_ids = ADRENO_CHIP_IDS(0x43020100),
 		.family = ADRENO_7XX_GEN1,
 		.fw = {
-			[ADRENO_FW_SQE] = "qcom/gen71700_sqe.fw",
-			[ADRENO_FW_GMU] = "qcom/gen71700_gmu.bin",
+			[ADRENO_FW_SQE] = "gen70e00_sqe.fw",
+			[ADRENO_FW_GMU] = "gen71700_gmu.bin",
 		},
 		.gmem = SZ_1M,
 		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
