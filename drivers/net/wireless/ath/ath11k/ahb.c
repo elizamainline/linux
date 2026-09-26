@@ -21,6 +21,13 @@
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 
+static const char * const ath11k_ahb_wcn6750_supply_names[] = {
+	"vdd-cx-mx",
+	"vdd-1.8-xo",
+	"vdd-1.3-rfa",
+	"vdd-1.8-io",
+};
+
 static const struct of_device_id ath11k_ahb_of_match[] = {
 	/* TODO: Should we change the compatible string to something similar
 	 * to one that ath10k uses?
@@ -406,9 +413,15 @@ static int ath11k_ahb_power_up(struct ath11k_base *ab)
 	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
 	int ret;
 
-	ret = rproc_boot(ab_ahb->tgt_rproc);
+	ret = regulator_bulk_enable(ab_ahb->num_vregs, ab_ahb->vregs);
 	if (ret)
+		return ret;
+
+	ret = rproc_boot(ab_ahb->tgt_rproc);
+	if (ret) {
 		ath11k_err(ab, "failed to boot the remote processor Q6\n");
+		regulator_bulk_disable(ab_ahb->num_vregs, ab_ahb->vregs);
+	}
 
 	return ret;
 }
@@ -418,6 +431,29 @@ static void ath11k_ahb_power_down(struct ath11k_base *ab, bool is_suspend)
 	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
 
 	rproc_shutdown(ab_ahb->tgt_rproc);
+	regulator_bulk_disable(ab_ahb->num_vregs, ab_ahb->vregs);
+}
+
+static int ath11k_ahb_get_wcn6750_supplies(struct ath11k_base *ab)
+{
+	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
+	struct device *dev = ab->dev;
+	int i;
+
+	if (ab->hw_rev != ATH11K_HW_WCN6750_HW10 ||
+	    !device_property_present(dev, "vdd-cx-mx-supply"))
+		return 0;
+
+	ab_ahb->num_vregs = ARRAY_SIZE(ath11k_ahb_wcn6750_supply_names);
+	ab_ahb->vregs = devm_kcalloc(dev, ab_ahb->num_vregs,
+				    sizeof(*ab_ahb->vregs), GFP_KERNEL);
+	if (!ab_ahb->vregs)
+		return -ENOMEM;
+
+	for (i = 0; i < ab_ahb->num_vregs; i++)
+		ab_ahb->vregs[i].supply = ath11k_ahb_wcn6750_supply_names[i];
+
+	return devm_regulator_bulk_get(dev, ab_ahb->num_vregs, ab_ahb->vregs);
 }
 
 static void ath11k_ahb_init_qmi_ce_config(struct ath11k_base *ab)
@@ -1180,6 +1216,10 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	ab->hw_rev = hw_rev;
 	ab->fw_mode = ATH11K_FIRMWARE_MODE_NORMAL;
 	platform_set_drvdata(pdev, ab);
+
+	ret = ath11k_ahb_get_wcn6750_supplies(ab);
+	if (ret)
+		goto err_core_free;
 
 	ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
 	if (ret) {
