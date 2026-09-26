@@ -16,6 +16,7 @@
 #include "dp_rx.h"
 #include "debug.h"
 #include "hif.h"
+#include "pcic.h"
 #include "wow.h"
 #include "fw.h"
 
@@ -2331,6 +2332,21 @@ err_firmware_stop:
 static int ath11k_core_reconfigure_on_crash(struct ath11k_base *ab)
 {
 	int ret;
+
+	/* A remoteproc crash can restart firmware without going through
+	 * ath11k_core_reset(). Quiesce the IRQs before rebuilding the CE rings;
+	 * otherwise the next HIF start enables already enabled IRQs.
+	 */
+	if (!ab->is_reset) {
+		ath11k_hif_irq_disable(ab);
+		/* WCN6750 uses CE2 as its wake IRQ. The normal suspend helper
+		 * leaves that IRQ enabled, but firmware recovery restarts all CEs.
+		 */
+		if (ab->hw_rev == ATH11K_HW_WCN6750_HW10)
+			ath11k_pcic_ce_irq_disable_sync(ab);
+		else
+			ath11k_hif_ce_irq_disable(ab);
+	}
 
 	mutex_lock(&ab->core_lock);
 	ath11k_thermal_unregister(ab);
