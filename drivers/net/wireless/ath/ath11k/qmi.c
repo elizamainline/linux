@@ -2455,6 +2455,11 @@ static int ath11k_qmi_load_bdf_qmi(struct ath11k_base *ab,
 	if (bdf_type == ATH11K_QMI_BDF_TYPE_ELF || bdf_type == ATH11K_QMI_BDF_TYPE_REGDB)
 		goto out;
 
+	if (of_property_read_bool(ab->dev->of_node, "qcom,skip-cal-data")) {
+		ath11k_info(ab, "skipping separate CAL data download\n");
+		goto out;
+	}
+
 	if (ab->qmi.target.eeprom_caldata) {
 		file_type = ATH11K_QMI_FILE_TYPE_EEPROM;
 		tmp = filename;
