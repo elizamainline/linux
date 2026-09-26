@@ -16,6 +16,7 @@
 #include "dp_rx.h"
 #include "debug.h"
 #include "hif.h"
+#include "pcic.h"
 #include "wow.h"
 #include "fw.h"
 
@@ -2331,7 +2332,14 @@ static int ath11k_core_reconfigure_on_crash(struct ath11k_base *ab)
 
 	mutex_lock(&ab->core_lock);
 	ath11k_hif_irq_disable(ab);
-	ath11k_hif_ce_irq_disable(ab);
+
+	/* WCN6750 uses CE2 as its wake IRQ. Disable it as well before
+	 * rebuilding the CE rings.
+	 */
+	if (ab->hw_rev == ATH11K_HW_WCN6750_HW10)
+		ath11k_pcic_ce_irq_disable_sync(ab);
+	else
+		ath11k_hif_ce_irq_disable(ab);
 	ath11k_thermal_unregister(ab);
 	ath11k_dp_pdev_free(ab);
 	ath11k_cfr_deinit(ab);
