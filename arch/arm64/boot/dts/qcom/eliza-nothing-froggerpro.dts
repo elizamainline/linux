@@ -379,6 +379,20 @@
 	};
 };
 
+&pmk8550_gpios {
+	pinctrl-0 = <&pmk8550_sleep_clk_default>;
+	pinctrl-names = "default";
+
+	pmk8550_sleep_clk_default: sleep-clk-default-state {
+		pins = "gpio3";
+		function = PMIC_GPIO_FUNC_FUNC1;
+		input-disable;
+		output-enable;
+		bias-disable;
+		power-source = <0>;
+	};
+};
+
 &pmxr2230_flash {
 	status = "okay";
 
