@@ -58,6 +58,16 @@
 #define RT6010_REG_EFS_INDEX	0x68
 #define RT6010_REG_EFS_CTRL	0x69
 
+/* One 35-sample cycle at the controller's roughly 60 kHz playback rate. */
+static const u8 rt6010_default_wave[] = {
+	/* Absolute waveform address (0x424), then its big-endian length (35). */
+	0x04, 0x24, 0x00, 0x23,
+	0x00, 0x16, 0x2c, 0x41, 0x53, 0x63, 0x6f, 0x78, 0x7d, 0x7e,
+	0x7b, 0x74, 0x69, 0x5b, 0x4a, 0x37, 0x22, 0x0b, 0xf5, 0xde,
+	0xc9, 0xb6, 0xa5, 0x97, 0x8c, 0x85, 0x82, 0x83, 0x88, 0x91,
+	0x9d, 0xad, 0xbf, 0xd4, 0xea,
+};
+
 struct rt6010 {
 	struct device *dev;
 	struct regmap *regmap;
@@ -184,16 +194,22 @@ static int rt6010_apply_trim(struct rt6010 *rt)
 
 static int rt6010_load_waveform(struct rt6010 *rt, struct device *dev)
 {
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
+	const u8 *data = rt6010_default_wave;
+	size_t size = sizeof(rt6010_default_wave);
 	int ret;
 	size_t offset;
 
-	ret = request_firmware(&fw, "haptic_config.bin", dev);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to load haptic_config.bin\n");
-	if (!fw->size || fw->size > RT6010_RAM_SIZE - RT6010_WAVE_BASE) {
-		ret = -EINVAL;
-		goto out;
+	ret = request_firmware_direct(&fw, "haptic_config.bin", dev);
+	if (!ret) {
+		if (fw->size && fw->size <= RT6010_RAM_SIZE - RT6010_WAVE_BASE) {
+			data = fw->data;
+			size = fw->size;
+		} else {
+			dev_warn(dev, "Invalid haptic_config.bin, using built-in waveform\n");
+			release_firmware(fw);
+			fw = NULL;
+		}
 	}
 
 	ret = regmap_write(rt->regmap, RT6010_REG_RAM_ADDR_H,
@@ -205,15 +221,16 @@ static int rt6010_load_waveform(struct rt6010 *rt, struct device *dev)
 	if (ret)
 		goto out;
 
-	for (offset = 0; offset < fw->size; offset += 32) {
+	for (offset = 0; offset < size; offset += 32) {
 		ret = regmap_raw_write(rt->regmap, RT6010_REG_RAM_DATA,
-				       fw->data + offset,
-				       min_t(size_t, 32, fw->size - offset));
+				       data + offset,
+				       min_t(size_t, 32, size - offset));
 		if (ret)
 			break;
 	}
 out:
-	release_firmware(fw);
+	if (fw)
+		release_firmware(fw);
 	return ret;
 }
 
