@@ -144,7 +144,8 @@ config INPUT_ICS_RT6010
 	select REGMAP_I2C
 	help
 	  Say Y here to enable force feedback rumble on ICS RT6010 haptic
-	  controllers. The driver needs the haptic_config.bin waveform firmware.
+	  controllers. The driver has a basic built-in waveform and can use
+	  haptic_config.bin for the stock waveform instead.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ics-rt6010.
