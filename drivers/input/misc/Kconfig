@@ -137,6 +137,18 @@ config INPUT_AW86927
 	  To compile this driver as a module, choose M here: the
 	  module will be called aw86927.
 
+config INPUT_ICS_RT6010
+	tristate "ICS RT6010 haptic driver"
+	depends on I2C
+	select INPUT_FF_MEMLESS
+	select REGMAP_I2C
+	help
+	  Say Y here to enable force feedback rumble on ICS RT6010 haptic
+	  controllers. The driver needs the haptic_config.bin waveform firmware.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ics-rt6010.
+
 config INPUT_BBNSM_PWRKEY
 	tristate "NXP BBNSM Power Key Driver"
 	depends on ARCH_MXC || COMPILE_TEST

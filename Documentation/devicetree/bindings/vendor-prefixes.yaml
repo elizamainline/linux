@@ -793,6 +793,8 @@ patternProperties:
     description: International Business Machines (IBM)
   "^ibm,.*":
     description: International Business Machines (IBM)
+  "^ics,.*":
+    description: ICSense Semiconductor Co., Ltd.
   "^icplus,.*":
     description: IC Plus Corp.
   "^idt,.*":
