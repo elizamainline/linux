@@ -131,6 +131,21 @@
 		compatible = "qcom,eliza-pmic-glink",
 			     "qcom,sm8550-pmic-glink",
 			     "qcom,pmic-glink";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		connector@0 {
+			compatible = "usb-c-connector";
+			reg = <0>;
+			data-role = "dual";
+			power-role = "dual";
+
+			port {
+				pmic_glink_hs_in: endpoint {
+					remote-endpoint = <&usb_dwc3_hs>;
+				};
+			};
+		};
 	};
 
 	reserved-memory {
@@ -571,16 +586,18 @@
 };
 
 &usb {
-	/delete-property/ usb-role-switch;
-
 	/* USB 2.0 only, the board does not route the SuperSpeed lanes. */
-	dr_mode = "peripheral";
+	dr_mode = "otg";
 	maximum-speed = "high-speed";
 	phys = <&usb_hsphy>;
 	phy-names = "usb2-phy";
 	qcom,select-utmi-as-pipe-clk;
 
 	status = "okay";
+};
+
+&usb_dwc3_hs {
+	remote-endpoint = <&pmic_glink_hs_in>;
 };
 
 &usb_hsphy {
