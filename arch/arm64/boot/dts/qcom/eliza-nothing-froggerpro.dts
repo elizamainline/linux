@@ -469,6 +469,13 @@
 	status = "okay";
 };
 
+&remoteproc_cdsp {
+	firmware-name = "qcom/sm7750/nothing/froggerpro/cdsp.mbn",
+			"qcom/sm7750/nothing/froggerpro/cdsp_dtb.mbn";
+
+	status = "okay";
+};
+
 &spi8 {
 	status = "okay";
 	cs-gpios = <&tlmm 3 GPIO_ACTIVE_LOW>;
