@@ -7,6 +7,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
@@ -559,6 +560,33 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
+	};
+
+	haptic_reset_default: haptic-reset-default-state {
+		pins = "gpio30";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	haptic_irq_default: haptic-irq-default-state {
+		pins = "gpio116";
+		function = "gpio";
+		bias-pull-up;
+		input-enable;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+
+	vibrator@5f {
+		compatible = "ics,rt6010";
+		reg = <0x5f>;
+		reset-gpios = <&tlmm 30 GPIO_ACTIVE_LOW>;
+		interrupts-extended = <&tlmm 116 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&haptic_reset_default>, <&haptic_irq_default>;
+		pinctrl-names = "default";
 	};
 };
 
