@@ -26,6 +26,7 @@
 
 	aliases {
 		serial0 = &uart13;
+		serial1 = &uart5;
 	};
 
 	chosen {
@@ -86,6 +87,66 @@
 			clocks = <&rpmhcc RPMH_CXO_CLK_A>;
 			clock-mult = <1>;
 			clock-div = <2>;
+		};
+	};
+
+	wcn6750-pmu {
+		compatible = "qcom,wcn6755-pmu", "qcom,wcn6750-pmu";
+
+		vddaon-supply = <&vreg_s3b>;
+		vddasd-supply = <&vreg_l7b>;
+		vddio-supply = <&vreg_l11b>;
+		vddpmu-supply = <&vreg_s3b>;
+		vddrfa0p8-supply = <&vreg_s3b>;
+		vddrfa1p2-supply = <&vreg_s2b>;
+		vddrfa1p7-supply = <&vreg_s1b>;
+		vddrfa2p2-supply = <&vreg_s4b>;
+
+		bt-enable-gpios = <&pm8550vs_g_gpios 4 GPIO_ACTIVE_HIGH>;
+		clocks = <&rpmhcc RPMH_RF_CLK1>;
+		pinctrl-0 = <&bluetooth_enable_default>;
+		pinctrl-names = "default";
+
+		regulators {
+			vreg_pmu_rfa_cmn: ldo0 {
+				regulator-name = "vreg_pmu_rfa_cmn";
+			};
+
+			vreg_pmu_aon_0p59: ldo1 {
+				regulator-name = "vreg_pmu_aon_0p59";
+			};
+
+			ldo2 {
+				regulator-name = "vreg_pmu_wlcx_0p8";
+			};
+
+			ldo3 {
+				regulator-name = "vreg_pmu_wlmx_0p85";
+			};
+
+			vreg_pmu_btcmx_0p85: ldo4 {
+				regulator-name = "vreg_pmu_btcmx_0p85";
+			};
+
+			vreg_pmu_rfa_0p8: ldo5 {
+				regulator-name = "vreg_pmu_rfa_0p8";
+			};
+
+			vreg_pmu_rfa_1p2: ldo6 {
+				regulator-name = "vreg_pmu_rfa_1p2";
+			};
+
+			vreg_pmu_rfa_1p7: ldo7 {
+				regulator-name = "vreg_pmu_rfa_1p7";
+			};
+
+			ldo8 {
+				regulator-name = "vreg_pmu_pcie_0p9";
+			};
+
+			ldo9 {
+				regulator-name = "vreg_pmu_pcie_1p8";
+			};
 		};
 	};
 
@@ -180,6 +241,7 @@
 		vdd-s1-supply = <&vph_pwr>;
 		vdd-s2-supply = <&vph_pwr>;
 		vdd-s3-supply = <&vph_pwr>;
+		vdd-s4-supply = <&vph_pwr>;
 		vdd-l4-l5-supply = <&vreg_s2b>;
 		vdd-l6-supply = <&vreg_s2b>;
 		vdd-l7-supply = <&vreg_s1b>;
@@ -208,6 +270,13 @@
 			regulator-name = "vreg_s3b";
 			regulator-min-microvolt = <880000>;
 			regulator-max-microvolt = <1040000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_s4b: smps4 {
+			regulator-name = "vreg_s4b";
+			regulator-min-microvolt = <2156000>;
+			regulator-max-microvolt = <2600000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -385,6 +454,34 @@
 	};
 };
 
+&spmi_bus0 {
+	pm8550vs_g: pmic@6 {
+		compatible = "qcom,pm8550", "qcom,spmi-pmic";
+		reg = <0x6 SPMI_USID>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		pm8550vs_g_gpios: gpio@8800 {
+			compatible = "qcom,pm8550vs-gpio", "qcom,spmi-gpio";
+			reg = <0x8800>;
+			gpio-controller;
+			gpio-ranges = <&pm8550vs_g_gpios 0 0 6>;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			bluetooth_enable_default: bluetooth-enable-default-state {
+				pins = "gpio4";
+				function = PMIC_GPIO_FUNC_NORMAL;
+				input-disable;
+				output-enable;
+				bias-disable;
+				power-source = <1>;
+			};
+		};
+	};
+};
+
 &pmxr2230_flash {
 	status = "okay";
 
@@ -512,6 +609,56 @@
 		function = "wcn_sw_ctrl";
 	};
 
+	qup_uart5_bt_cts: qup-uart5-bt-cts-state {
+		pins = "gpio132";
+		function = "qup1_se5";
+		bias-bus-hold;
+	};
+
+	qup_uart5_bt_rts: qup-uart5-bt-rts-state {
+		pins = "gpio133";
+		function = "qup1_se5";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	qup_uart5_bt_tx: qup-uart5-bt-tx-state {
+		pins = "gpio134";
+		function = "qup1_se5";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	qup_uart5_bt_rx: qup-uart5-bt-rx-state {
+		pins = "gpio135";
+		function = "qup1_se5";
+		bias-pull-up;
+	};
+
+	qup_uart5_sleep_cts: qup-uart5-sleep-cts-state {
+		pins = "gpio132";
+		function = "gpio";
+		bias-bus-hold;
+	};
+
+	qup_uart5_sleep_rts: qup-uart5-sleep-rts-state {
+		pins = "gpio133";
+		function = "gpio";
+		bias-pull-down;
+	};
+
+	qup_uart5_sleep_tx: qup-uart5-sleep-tx-state {
+		pins = "gpio134";
+		function = "gpio";
+		bias-pull-up;
+	};
+
+	qup_uart5_sleep_rx: qup-uart5-sleep-rx-state {
+		pins = "gpio135";
+		function = "gpio";
+		bias-pull-up;
+	};
+
 	qup_spi8_gpio_cs: qup-spi8-gpio-cs-state {
 		pins = "gpio3";
 		function = "gpio";
@@ -600,6 +747,31 @@
 /* UART_RX and UART_TX are routed to test points on the board. */
 &uart13 {
 	status = "okay";
+};
+
+&uart5 {
+	/delete-property/ interrupts;
+	interrupts-extended = <&intc GIC_SPI 358 IRQ_TYPE_LEVEL_HIGH>,
+			      <&tlmm 135 IRQ_TYPE_EDGE_FALLING>;
+
+	pinctrl-0 = <&qup_uart5_bt_cts>, <&qup_uart5_bt_rts>,
+		    <&qup_uart5_bt_tx>, <&qup_uart5_bt_rx>;
+	pinctrl-1 = <&qup_uart5_sleep_cts>, <&qup_uart5_sleep_rts>,
+		    <&qup_uart5_sleep_tx>, <&qup_uart5_sleep_rx>;
+	pinctrl-names = "default", "sleep";
+
+	status = "okay";
+
+	bluetooth {
+		compatible = "qcom,wcn6755-bt", "qcom,wcn6750-bt";
+
+		vddaon-supply = <&vreg_pmu_aon_0p59>;
+		vddbtcmx-supply = <&vreg_pmu_btcmx_0p85>;
+		vddrfa0p8-supply = <&vreg_pmu_rfa_0p8>;
+		vddrfa1p2-supply = <&vreg_pmu_rfa_1p2>;
+		vddrfa1p7-supply = <&vreg_pmu_rfa_1p7>;
+		vddrfacmn-supply = <&vreg_pmu_rfa_cmn>;
+	};
 };
 
 &ufs_mem_hc {
