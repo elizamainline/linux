@@ -566,6 +566,10 @@
 	status = "okay";
 };
 
+&q6apm {
+	qcom,spf-core-port = <3>;
+};
+
 &remoteproc_cdsp {
 	firmware-name = "qcom/sm7750/nothing/froggerpro/cdsp.mbn",
 			"qcom/sm7750/nothing/froggerpro/cdsp_dtb.mbn";

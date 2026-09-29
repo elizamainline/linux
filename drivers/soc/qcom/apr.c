@@ -87,8 +87,8 @@ void gpr_free_port(gpr_port_t *port)
 }
 EXPORT_SYMBOL_GPL(gpr_free_port);
 
-gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
-				gpr_port_cb cb,	void *priv)
+static gpr_port_t *__gpr_alloc_port(struct apr_device *gdev, struct device *dev,
+				   gpr_port_cb cb, void *priv, u32 port_id)
 {
 	struct packet_router *pr = dev_get_drvdata(gdev->dev.parent);
 	gpr_port_t *port;
@@ -107,10 +107,14 @@ gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
 	spin_lock_init(&svc->lock);
 
 	spin_lock(&pr->svcs_lock);
-	id = idr_alloc_cyclic(&pr->svcs_idr, svc, GPR_DYNAMIC_PORT_START,
-			      GPR_DYNAMIC_PORT_END, GFP_ATOMIC);
+	if (port_id)
+		id = idr_alloc(&pr->svcs_idr, svc, port_id, port_id + 1,
+			       GFP_ATOMIC);
+	else
+		id = idr_alloc_cyclic(&pr->svcs_idr, svc, GPR_DYNAMIC_PORT_START,
+				      GPR_DYNAMIC_PORT_END, GFP_ATOMIC);
 	if (id < 0) {
-		dev_err(dev, "Unable to allocate dynamic GPR src port\n");
+		dev_err(dev, "Unable to allocate GPR src port: %d\n", id);
 		kfree(port);
 		spin_unlock(&pr->svcs_lock);
 		return ERR_PTR(id);
@@ -121,7 +125,23 @@ gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
 
 	return port;
 }
+
+gpr_port_t *gpr_alloc_port(struct apr_device *gdev, struct device *dev,
+				gpr_port_cb cb, void *priv)
+{
+	return __gpr_alloc_port(gdev, dev, cb, priv, 0);
+}
 EXPORT_SYMBOL_GPL(gpr_alloc_port);
+
+gpr_port_t *gpr_alloc_port_fixed(struct apr_device *gdev, struct device *dev,
+				gpr_port_cb cb, void *priv, u32 port_id)
+{
+	if (!port_id || port_id >= GPR_DYNAMIC_PORT_START)
+		return ERR_PTR(-EINVAL);
+
+	return __gpr_alloc_port(gdev, dev, cb, priv, port_id);
+}
+EXPORT_SYMBOL_GPL(gpr_alloc_port_fixed);
 
 static int pkt_router_send_svc_pkt(struct pkt_router_svc *svc, const struct gpr_pkt *pkt)
 {
