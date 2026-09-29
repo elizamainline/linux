@@ -75,6 +75,7 @@ struct qcom_snd_soc_common {
 	bool codec_sysclk_set;
 	bool mi2s_mclk_enable;
 	bool mi2s_bclk_enable;
+	bool mi2s_32bit;
 	bool wcd_jack;
 	int (*snd_prepare)(struct snd_pcm_substream *substream);
 };
@@ -223,6 +224,7 @@ static int sc8280xp_snd_init(struct snd_soc_pcm_runtime *rtd)
 static int sc8280xp_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				     struct snd_pcm_hw_params *params)
 {
+	struct sc8280xp_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct snd_interval *rate = hw_param_interval(params,
 					SNDRV_PCM_HW_PARAM_RATE);
@@ -231,7 +233,11 @@ static int sc8280xp_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 
 	rate->min = rate->max = 48000;
-	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
+	snd_mask_none(fmt);
+	if (data->priv->mi2s_32bit && cpu_dai->id == PRIMARY_MI2S_RX)
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S32_LE);
+	else
+		snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S16_LE);
 	channels->min = 2;
 	channels->max = 2;
 	switch (cpu_dai->id) {
@@ -458,6 +464,8 @@ static const struct qcom_snd_soc_common froggerpro_priv_data = {
 	.dapm_widgets = froggerpro_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(froggerpro_dapm_widgets),
 	.mi2s_bclk_enable = true,
+	/* The AW88271 ACF profiles use 48 kHz and 32-bit stereo slots. */
+	.mi2s_32bit = true,
 	.codec_dai_fmt = SND_SOC_DAIFMT_BC_FC |
 			 SND_SOC_DAIFMT_NB_NF |
 			 SND_SOC_DAIFMT_I2S,

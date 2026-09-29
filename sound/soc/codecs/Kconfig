@@ -706,6 +706,18 @@ config SND_SOC_AW88261
 	  boost converter can be adjusted smartly according to
 	  the input amplitude.
 
+config SND_SOC_AW88271
+	tristate "SoC Audio for Awinic AW88271"
+	depends on I2C
+	select REGMAP_I2C
+	select GPIOLIB
+	select SND_SOC_AW88395_LIB
+	help
+	  Support the Awinic AW88271 I2S smart speaker amplifier. The
+	  amplifier is configured over I2C and uses an ACF file with
+	  board-specific register profiles. Multiple amplifiers can share
+	  the same I2S bus and select separate profiles by channel index.
+
 config SND_SOC_AW88081
 	tristate "Soc Audio for awinic aw88081/aw88083"
 	depends on I2C
