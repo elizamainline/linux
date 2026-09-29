@@ -24,7 +24,9 @@ struct st21nfc_i2c {
 	struct i2c_client *client;
 	struct nci_dev *ndev;
 	struct gpio_desc *reset;
+	struct completion mode_response;
 	struct completion mode_reset;
+	u8 mode_status;
 	bool waiting_for_mode_reset;
 };
 
@@ -55,6 +57,7 @@ static int st21nfc_send(struct nci_dev *ndev, struct sk_buff *skb)
 	struct st21nfc_i2c *priv = nci_get_drvdata(ndev);
 	int ret;
 
+	dev_dbg(&priv->client->dev, "TX: %*ph\n", skb->len, skb->data);
 	ret = i2c_master_send(priv->client, skb->data, skb->len);
 	if (ret >= 0 && ret != skb->len)
 		ret = -EREMOTEIO;
@@ -70,10 +73,15 @@ static int st21nfc_send(struct nci_dev *ndev, struct sk_buff *skb)
 
 static int st21nfc_mode_rsp(struct nci_dev *ndev, struct sk_buff *skb)
 {
+	struct st21nfc_i2c *priv = nci_get_drvdata(ndev);
+
 	if (!skb->len)
 		return -EINVAL;
 
-	nci_req_complete(ndev, skb->data[0]);
+	if (READ_ONCE(priv->waiting_for_mode_reset)) {
+		priv->mode_status = skb->data[0];
+		complete(&priv->mode_response);
+	}
 	return 0;
 }
 
@@ -95,17 +103,27 @@ static const struct nci_driver_ops st21nfc_prop_ops[] = {
 static int st21nfc_setup(struct nci_dev *ndev)
 {
 	struct st21nfc_i2c *priv = nci_get_drvdata(ndev);
-	static const u8 mode_on[] = { 0x02, 0x01 };
+	static const u8 mode_on[] = { 0x2f, 0x02, 0x02, 0x02, 0x01 };
 	static const u8 core_init_v2[] = { 0x00, 0x00 };
+	unsigned long response_seen;
+	unsigned long reset_seen;
 	int ret;
 
 	/* ST54L requires NFC mode to be enabled after the first CORE_INIT. */
+	reinit_completion(&priv->mode_response);
 	reinit_completion(&priv->mode_reset);
+	priv->mode_status = 0xff;
 	WRITE_ONCE(priv->waiting_for_mode_reset, true);
-	ret = nci_prop_cmd(ndev, ST21NFC_MODE_SET_OID,
-			   sizeof(mode_on), mode_on);
-	if (ret) {
-		dev_err(&priv->client->dev, "failed to enable NFC mode: %d\n", ret);
+	/*
+	 * Send directly: CORE_RESET_NTF can arrive before the mode response and
+	 * would otherwise complete nci_prop_cmd() as the wrong request.
+	 */
+	dev_dbg(&priv->client->dev, "TX: %*ph\n", (int)sizeof(mode_on), mode_on);
+	ret = i2c_master_send(priv->client, mode_on, sizeof(mode_on));
+	if (ret != sizeof(mode_on)) {
+		if (ret >= 0)
+			ret = -EREMOTEIO;
+		dev_err(&priv->client->dev, "failed to send NFC mode command: %d\n", ret);
 		goto out;
 	}
 
@@ -113,9 +131,23 @@ static int st21nfc_setup(struct nci_dev *ndev)
 	 * The command restarts the controller. The ST HAL retries CORE_INIT
 	 * after 500 ms even if no reset notification arrives.
 	 */
-	wait_for_completion_timeout(&priv->mode_reset,
+	response_seen = wait_for_completion_timeout(&priv->mode_response,
+					msecs_to_jiffies(ST21NFC_MODE_RESET_TIMEOUT_MS));
+	if (!response_seen)
+		dev_warn(&priv->client->dev, "NFC mode response not received\n");
+	if (response_seen && priv->mode_status != NCI_STATUS_OK) {
+		ret = nci_to_errno(priv->mode_status);
+		dev_err(&priv->client->dev, "NFC mode rejected: status 0x%02x\n",
+			priv->mode_status);
+		goto out;
+	}
+	reset_seen = wait_for_completion_timeout(&priv->mode_reset,
 				    msecs_to_jiffies(ST21NFC_MODE_RESET_TIMEOUT_MS));
+	if (!reset_seen)
+		dev_warn(&priv->client->dev, "NFC mode reset notification not received\n");
 	flush_workqueue(ndev->rx_wq);
+	dev_dbg(&priv->client->dev, "NCI version after mode reset: 0x%02x\n",
+		ndev->nci_ver);
 	ret = nci_core_cmd(ndev, NCI_OP_CORE_INIT_CMD,
 			   sizeof(core_init_v2), core_init_v2);
 	if (ret)
@@ -175,6 +207,7 @@ static irqreturn_t st21nfc_irq_thread(int irq, void *data)
 		}
 	}
 
+	dev_dbg(&client->dev, "RX: %*ph\n", skb->len, skb->data);
 	nci_recv_frame(priv->ndev, skb);
 	if (hdr[0] == 0x60 && hdr[1] == 0x00 &&
 	    READ_ONCE(priv->waiting_for_mode_reset))
@@ -195,6 +228,7 @@ static int st21nfc_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	priv->client = client;
+	init_completion(&priv->mode_response);
 	init_completion(&priv->mode_reset);
 	priv->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->reset))
