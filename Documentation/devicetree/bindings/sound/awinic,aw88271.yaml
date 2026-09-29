@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/awinic,aw88271.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Awinic AW88271 Smart Audio Amplifier
+
+maintainers:
+  - Weidong Wang <wangweidong.a@awinic.com>
+
+description:
+  The AW88271 is an I2S input smart speaker amplifier configured over I2C.
+  Multiple amplifiers may share an I2S bus and use separate audio channels.
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    const: awinic,aw88271
+
+  reg:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 0
+
+  reset-gpios:
+    maxItems: 1
+
+  firmware-name:
+    maxItems: 1
+    description: Name of the amplifier configuration file
+
+  awinic,audio-channel:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Channel index used to select the amplifier configuration
+    minimum: 0
+    maximum: 7
+
+required:
+  - compatible
+  - reg
+  - '#sound-dai-cells'
+  - reset-gpios
+  - awinic,audio-channel
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        audio-codec@34 {
+            compatible = "awinic,aw88271";
+            reg = <0x34>;
+            #sound-dai-cells = <0>;
+            reset-gpios = <&gpio 146 GPIO_ACTIVE_LOW>;
+            awinic,audio-channel = <0>;
+            firmware-name = "aw882xx_acf.bin";
+        };
+    };
