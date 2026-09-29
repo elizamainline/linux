@@ -1,0 +1,189 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Raw NCI I2C transport for STMicroelectronics ST21NFC controllers. */
+
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/nfc.h>
+#include <linux/string.h>
+
+#include <net/nfc/nci_core.h>
+
+#define ST21NFC_PROTOCOLS (NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK | \
+			   NFC_PROTO_FELICA_MASK | NFC_PROTO_ISO14443_MASK | \
+			   NFC_PROTO_ISO14443_B_MASK | NFC_PROTO_ISO15693_MASK | \
+			   NFC_PROTO_NFC_DEP_MASK)
+
+struct st21nfc_i2c {
+	struct i2c_client *client;
+	struct nci_dev *ndev;
+	struct gpio_desc *reset;
+};
+
+static int st21nfc_open(struct nci_dev *ndev)
+{
+	struct st21nfc_i2c *priv = nci_get_drvdata(ndev);
+
+	/* Reset is active low. Release it before accepting controller IRQs. */
+	gpiod_set_value_cansleep(priv->reset, 0);
+	msleep(80);
+	enable_irq(priv->client->irq);
+
+	return 0;
+}
+
+static int st21nfc_close(struct nci_dev *ndev)
+{
+	struct st21nfc_i2c *priv = nci_get_drvdata(ndev);
+
+	disable_irq(priv->client->irq);
+	gpiod_set_value_cansleep(priv->reset, 1);
+
+	return 0;
+}
+
+static int st21nfc_send(struct nci_dev *ndev, struct sk_buff *skb)
+{
+	struct st21nfc_i2c *priv = nci_get_drvdata(ndev);
+	int ret;
+
+	ret = i2c_master_send(priv->client, skb->data, skb->len);
+	if (ret >= 0 && ret != skb->len)
+		ret = -EREMOTEIO;
+	else if (ret >= 0)
+		ret = 0;
+
+	if (ret)
+		kfree_skb(skb);
+	else
+		consume_skb(skb);
+	return ret;
+}
+
+static const struct nci_ops st21nfc_ops = {
+	.open = st21nfc_open,
+	.close = st21nfc_close,
+	.send = st21nfc_send,
+};
+
+static irqreturn_t st21nfc_irq_thread(int irq, void *data)
+{
+	struct st21nfc_i2c *priv = data;
+	struct i2c_client *client = priv->client;
+	struct sk_buff *skb;
+	u8 hdr[NCI_CTRL_HDR_SIZE];
+	unsigned int i;
+	int ret;
+
+	ret = i2c_master_recv(client, hdr, sizeof(hdr));
+	if (ret != sizeof(hdr)) {
+		dev_err_ratelimited(&client->dev, "NCI header read failed: %d\n", ret);
+		return IRQ_HANDLED;
+	}
+
+	/* The controller may pad an I2C read with idle (0x7e) bytes. */
+	for (i = 0; i < sizeof(hdr) && hdr[0] == 0x7e; i++) {
+		memmove(hdr, hdr + 1, sizeof(hdr) - 1);
+		ret = i2c_master_recv(client, hdr + sizeof(hdr) - 1, 1);
+		if (ret != 1)
+			return IRQ_HANDLED;
+	}
+	if (hdr[0] == 0x7e)
+		return IRQ_HANDLED;
+
+	skb = alloc_skb(sizeof(hdr) + hdr[2], GFP_KERNEL);
+	if (!skb)
+		return IRQ_HANDLED;
+
+	skb_put_data(skb, hdr, sizeof(hdr));
+	if (hdr[2]) {
+		ret = i2c_master_recv(client, skb_put(skb, hdr[2]), hdr[2]);
+		if (ret != hdr[2]) {
+			dev_err_ratelimited(&client->dev,
+					    "NCI payload read failed: %d\n", ret);
+			kfree_skb(skb);
+			return IRQ_HANDLED;
+		}
+	}
+
+	nci_recv_frame(priv->ndev, skb);
+	return IRQ_HANDLED;
+}
+
+static int st21nfc_probe(struct i2c_client *client)
+{
+	struct st21nfc_i2c *priv;
+	int ret;
+
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
+		return -EOPNOTSUPP;
+
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->client = client;
+	priv->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(priv->reset))
+		return dev_err_probe(&client->dev, PTR_ERR(priv->reset),
+				     "failed to get reset GPIO\n");
+
+	priv->ndev = nci_allocate_device(&st21nfc_ops, ST21NFC_PROTOCOLS, 0, 0);
+	if (!priv->ndev)
+		return -ENOMEM;
+
+	nci_set_parent_dev(priv->ndev, &client->dev);
+	nci_set_drvdata(priv->ndev, priv);
+	i2c_set_clientdata(client, priv);
+
+	ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+					st21nfc_irq_thread, IRQF_ONESHOT,
+					dev_name(&client->dev), priv);
+	if (ret)
+		goto free_device;
+	disable_irq(client->irq);
+
+	ret = nci_register_device(priv->ndev);
+	if (ret)
+		goto free_irq;
+
+	return 0;
+
+free_irq:
+	enable_irq(client->irq);
+	devm_free_irq(&client->dev, client->irq, priv);
+free_device:
+	nci_free_device(priv->ndev);
+	return ret;
+}
+
+static void st21nfc_remove(struct i2c_client *client)
+{
+	struct st21nfc_i2c *priv = i2c_get_clientdata(client);
+
+	nci_unregister_device(priv->ndev);
+	enable_irq(client->irq);
+	devm_free_irq(&client->dev, client->irq, priv);
+	nci_free_device(priv->ndev);
+}
+
+static const struct of_device_id st21nfc_of_match[] = {
+	{ .compatible = "st,st21nfc" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, st21nfc_of_match);
+
+static struct i2c_driver st21nfc_driver = {
+	.driver = {
+		.name = "st21nfc_i2c",
+		.of_match_table = st21nfc_of_match,
+	},
+	.probe = st21nfc_probe,
+	.remove = st21nfc_remove,
+};
+module_i2c_driver(st21nfc_driver);
+
+MODULE_DESCRIPTION("ST21NFC raw NCI I2C driver");
+MODULE_LICENSE("GPL");
