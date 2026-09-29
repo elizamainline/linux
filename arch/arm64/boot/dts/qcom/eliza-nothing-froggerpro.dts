@@ -729,6 +729,26 @@
 		bias-pull-up;
 		input-enable;
 	};
+
+	nfc_irq_default: nfc-irq-default-state {
+		pins = "gpio7";
+		function = "gpio";
+		bias-pull-down;
+		input-enable;
+	};
+
+	nfc_reset_default: nfc-reset-default-state {
+		pins = "gpio57";
+		function = "gpio";
+		bias-disable;
+	};
+
+	nfc_clkreq_default: nfc-clkreq-default-state {
+		pins = "gpio6";
+		function = "gpio";
+		bias-disable;
+		input-enable;
+	};
 };
 
 &i2c2 {
@@ -740,6 +760,21 @@
 		reset-gpios = <&tlmm 30 GPIO_ACTIVE_LOW>;
 		interrupts-extended = <&tlmm 116 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-0 = <&haptic_reset_default>, <&haptic_irq_default>;
+		pinctrl-names = "default";
+	};
+};
+
+&i2c9 {
+	status = "okay";
+
+	nfc@8 {
+		compatible = "st,st21nfc";
+		reg = <0x08>;
+		interrupts-extended = <&tlmm 7 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpios = <&tlmm 57 GPIO_ACTIVE_LOW>;
+		clkreq-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&nfc_irq_default>, <&nfc_reset_default>,
+			    <&nfc_clkreq_default>;
 		pinctrl-names = "default";
 	};
 };
