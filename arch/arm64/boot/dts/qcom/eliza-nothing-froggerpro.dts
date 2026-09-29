@@ -216,6 +216,31 @@
 			no-map;
 		};
 	};
+
+	sound {
+		compatible = "nothing,froggerpro-sndcard", "qcom,sm8450-sndcard";
+		model = "Nothing Phone (4a) Pro";
+		pinctrl-0 = <&pri_mi2s_default>;
+		pinctrl-names = "default";
+		audio-routing = "Speaker 0", "Spkr0 OUT",
+				"Speaker 1", "Spkr1 OUT";
+
+		pri-mi2s-playback-dai-link {
+			link-name = "Primary MI2S Speaker Playback";
+
+			codec {
+				sound-dai = <&speaker_0>, <&speaker_1>;
+			};
+
+			cpu {
+				sound-dai = <&q6apmbedai PRIMARY_MI2S_RX>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
+	};
 };
 
 &remoteproc_wpss {
@@ -570,6 +595,18 @@
 	qcom,spf-core-port = <3>;
 };
 
+&q6apmbedai {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	dai@10 {
+		reg = <PRIMARY_MI2S_RX>;
+		clocks = <&q6prmcc LPASS_CLK_ID_PRI_MI2S_IBIT
+				 LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
+		clock-names = "bclk";
+	};
+};
+
 &remoteproc_cdsp {
 	firmware-name = "qcom/sm7750/nothing/froggerpro/cdsp.mbn",
 			"qcom/sm7750/nothing/froggerpro/cdsp_dtb.mbn";
@@ -611,6 +648,36 @@
 	wifi_sw_ctrl: wifi-sw-ctrl-state {
 		pins = "gpio81";
 		function = "wcn_sw_ctrl";
+	};
+
+	pri_mi2s_default: pri-mi2s-default-state {
+		sck-pins {
+			pins = "gpio60";
+			function = "i2s0_sck";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		ws-pins {
+			pins = "gpio61";
+			function = "i2s0_ws";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		data0-pins {
+			pins = "gpio64";
+			function = "i2s0_data0";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		data1-pins {
+			pins = "gpio63";
+			function = "i2s0_data1";
+			drive-strength = <8>;
+			bias-pull-down;
+		};
 	};
 
 	qup_uart5_bt_cts: qup-uart5-bt-cts-state {
@@ -752,6 +819,30 @@
 		function = "gpio";
 		bias-disable;
 		input-enable;
+	};
+};
+
+&i2c6 {
+	status = "okay";
+
+	speaker_0: audio-codec@34 {
+		compatible = "awinic,aw88271";
+		reg = <0x34>;
+		#sound-dai-cells = <0>;
+		reset-gpios = <&tlmm 146 GPIO_ACTIVE_LOW>;
+		sound-name-prefix = "Spkr0";
+		awinic,audio-channel = <0>;
+		firmware-name = "aw882xx_acf.bin";
+	};
+
+	speaker_1: audio-codec@35 {
+		compatible = "awinic,aw88271";
+		reg = <0x35>;
+		#sound-dai-cells = <0>;
+		reset-gpios = <&tlmm 147 GPIO_ACTIVE_LOW>;
+		sound-name-prefix = "Spkr1";
+		awinic,audio-channel = <1>;
+		firmware-name = "aw882xx_acf.bin";
 	};
 };
 

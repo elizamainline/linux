@@ -38,6 +38,11 @@ static struct snd_soc_dapm_widget sc8280xp_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("DP7 Jack", NULL),
 };
 
+static const struct snd_soc_dapm_widget froggerpro_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("Speaker 0", NULL),
+	SND_SOC_DAPM_SPK("Speaker 1", NULL),
+};
+
 static const struct snd_kcontrol_new max98090_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headset Mic12"),
 	SOC_DAPM_PIN_SWITCH("Headphone"),
@@ -249,11 +254,12 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *dai;
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct sc8280xp_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
 	int mclk_freq = sc8280xp_get_mclk_freq(params);
 	int bclk_freq = sc8280xp_get_bclk_freq(params);
-	int ret;
+	int ret, i;
 
 	switch (cpu_dai->id) {
 	case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
@@ -265,10 +271,12 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 
 		if (data->priv->codec_dai_fmt) {
-			ret = snd_soc_dai_set_fmt(codec_dai,
-						  data->priv->codec_dai_fmt);
-			if (ret && ret != -ENOTSUPP)
-				return ret;
+			for_each_rtd_codec_dais(rtd, i, dai) {
+				ret = snd_soc_dai_set_fmt(dai,
+							  data->priv->codec_dai_fmt);
+				if (ret && ret != -ENOTSUPP)
+					return ret;
+			}
 		}
 
 		if (data->priv->mi2s_mclk_enable) {
@@ -445,6 +453,16 @@ static const struct qcom_snd_soc_common eliza_priv_data = {
 	.wcd_jack = true,
 };
 
+static const struct qcom_snd_soc_common froggerpro_priv_data = {
+	.driver_name = "froggerpro",
+	.dapm_widgets = froggerpro_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(froggerpro_dapm_widgets),
+	.mi2s_bclk_enable = true,
+	.codec_dai_fmt = SND_SOC_DAIFMT_BC_FC |
+			 SND_SOC_DAIFMT_NB_NF |
+			 SND_SOC_DAIFMT_I2S,
+};
+
 static const struct qcom_snd_soc_common hawi_priv_data = {
 	.driver_name = "hawi",
 	.dapm_widgets = sc8280xp_dapm_widgets,
@@ -560,6 +578,7 @@ static const struct qcom_snd_soc_common sm8750_priv_data = {
 
 static const struct of_device_id snd_sc8280xp_dt_match[] = {
 	{ .compatible = "ayaneo,pocket-s2-sndcard", .data = &ayaneo_ps2_priv_data },
+	{ .compatible = "nothing,froggerpro-sndcard", .data = &froggerpro_priv_data },
 	{ .compatible = "qcom,eliza-sndcard", .data = &eliza_priv_data },
 	{ .compatible = "qcom,hawi-sndcard", .data = &hawi_priv_data },
 	{ .compatible = "qcom,kaanapali-sndcard", .data = &kaanapali_priv_data },
