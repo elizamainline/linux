@@ -26,6 +26,8 @@ struct apm_graph_mgmt_cmd {
 } __packed;
 
 #define APM_GRAPH_MGMT_PSIZE(p, n) ALIGN(struct_size(p, sub_graph_id_list, n), 8)
+#define SPF_STATE_QUERY_TIMEOUT_MS	1000
+#define SPF_STATE_READY_ATTEMPTS		30
 
 static struct q6apm *g_apm;
 
@@ -145,7 +147,7 @@ static void q6apm_put_audioreach_graph(struct kref *ref)
 static bool q6apm_get_apm_state(struct q6apm *apm)
 {
 	struct gpr_pkt *pkt;
-	int ret;
+	int ret, attempt;
 
 	if (apm->port)
 		pkt = audioreach_alloc_apm_pkt(0, APM_CMD_GET_SPF_STATE, 0,
@@ -155,17 +157,41 @@ static bool q6apm_get_apm_state(struct q6apm *apm)
 	if (IS_ERR(pkt))
 		return false;
 
-	ret = audioreach_send_cmd_sync(apm->dev, apm->port ? NULL : apm->gdev,
-				       &apm->result, &apm->lock, apm->port,
-				       &apm->wait, pkt, APM_CMD_RSP_GET_SPF_STATE);
-	kfree(pkt);
-	if (ret)
-		return false;
-	if (apm->port)
-		dev_info(apm->dev, "SPF state on GPR source port %u: %u\n",
-			 apm->port->id, apm->state);
+	if (!apm->port) {
+		ret = q6apm_send_cmd_sync(apm, pkt, APM_CMD_RSP_GET_SPF_STATE);
+		goto done;
+	}
 
-	return apm->state;
+	/* SPF can respond only after the ADSP firmware finishes starting up. */
+	mutex_lock(&apm->lock);
+	apm->state = 0;
+	for (attempt = 1; attempt <= SPF_STATE_READY_ATTEMPTS; attempt++) {
+		ret = gpr_send_port_pkt(apm->port, pkt);
+		if (ret < 0)
+			break;
+
+		if (wait_event_timeout(apm->wait, READ_ONCE(apm->state),
+				msecs_to_jiffies(SPF_STATE_QUERY_TIMEOUT_MS)))
+			break;
+
+		if (attempt < SPF_STATE_READY_ATTEMPTS)
+			usleep_range(50000, 50500);
+	}
+	mutex_unlock(&apm->lock);
+
+	if (ret < 0)
+		dev_err(apm->dev, "Failed to query SPF state on GPR port %u: %d\n",
+			apm->port->id, ret);
+	else if (!apm->state)
+		dev_err(apm->dev, "SPF did not become ready on GPR port %u\n",
+			apm->port->id);
+	else
+		dev_info(apm->dev, "SPF ready on GPR source port %u after %d queries\n",
+			 apm->port->id, attempt);
+
+done:
+	kfree(pkt);
+	return ret >= 0 && apm->state;
 }
 
 bool q6apm_is_adsp_ready(void)
@@ -906,7 +932,10 @@ static int apm_probe(gpr_device_t *gdev)
 
 	g_apm = apm;
 
-	q6apm_get_apm_state(apm);
+	if (!q6apm_get_apm_state(apm) && apm->port) {
+		ret = -EPROBE_DEFER;
+		goto free_port;
+	}
 
 	ret = snd_soc_register_component(dev, &q6apm_audio_component, NULL, 0);
 	if (ret < 0) {
