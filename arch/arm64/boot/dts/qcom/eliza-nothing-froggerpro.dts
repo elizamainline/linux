@@ -832,7 +832,7 @@
 		reset-gpios = <&tlmm 146 GPIO_ACTIVE_LOW>;
 		sound-name-prefix = "Spkr0";
 		awinic,audio-channel = <0>;
-		firmware-name = "aw882xx_acf.bin";
+		firmware-name = "qcom/sm7750/nothing/froggerpro/aw882xx_acf.bin";
 	};
 
 	speaker_1: audio-codec@35 {
@@ -842,7 +842,7 @@
 		reset-gpios = <&tlmm 147 GPIO_ACTIVE_LOW>;
 		sound-name-prefix = "Spkr1";
 		awinic,audio-channel = <1>;
-		firmware-name = "aw882xx_acf.bin";
+		firmware-name = "qcom/sm7750/nothing/froggerpro/aw882xx_acf.bin";
 	};
 };
 
