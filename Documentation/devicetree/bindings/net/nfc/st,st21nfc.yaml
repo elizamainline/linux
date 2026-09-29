@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/nfc/st,st21nfc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics ST21NFC raw NCI controller
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  ST21NFC family controllers which exchange NCI packets directly over I2C,
+  without the NDLC framing used by the ST21NFCB and ST21NFCC controllers.
+
+properties:
+  compatible:
+    const: st,st21nfc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    description: Active-low controller reset line
+    maxItems: 1
+
+  clkreq-gpios:
+    description: Controller clock request input
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - reset-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        nfc@8 {
+            compatible = "st,st21nfc";
+            reg = <0x08>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+            reset-gpios = <&gpio1 57 GPIO_ACTIVE_LOW>;
+            clkreq-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+        };
+    };
