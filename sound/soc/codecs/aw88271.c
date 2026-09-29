@@ -216,27 +216,9 @@ fail:
 	return ret;
 }
 
-static int aw88271_playback_event(struct snd_soc_dapm_widget *widget,
-				  struct snd_kcontrol *control, int event)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
-	struct aw88271 *aw = snd_soc_component_get_drvdata(component);
-	int ret;
-
-	mutex_lock(&aw->lock);
-	if (event == SND_SOC_DAPM_PRE_PMU)
-		ret = aw88271_start(aw);
-	else
-		ret = aw88271_power_down(aw);
-	mutex_unlock(&aw->lock);
-
-	return ret;
-}
-
 static const struct snd_soc_dapm_widget aw88271_widgets[] = {
-	SND_SOC_DAPM_AIF_IN_E("AIF_RX", "Speaker Playback", 0,
-				 SND_SOC_NOPM, 0, 0, aw88271_playback_event,
-				 SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_AIF_IN("AIF_RX", "Speaker Playback", 0,
+				SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
 
@@ -317,8 +299,37 @@ static int aw88271_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static int aw88271_trigger(struct snd_pcm_substream *substream, int cmd,
+			   struct snd_soc_dai *dai)
+{
+	struct aw88271 *aw = snd_soc_component_get_drvdata(dai->component);
+	int ret;
+
+	mutex_lock(&aw->lock);
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		/* The CPU DAI starts the MI2S port before the codec DAI triggers. */
+		ret = aw88271_start(aw);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		ret = aw88271_power_down(aw);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	mutex_unlock(&aw->lock);
+
+	return ret;
+}
+
 static const struct snd_soc_dai_ops aw88271_dai_ops = {
 	.set_fmt = aw88271_set_fmt,
+	.trigger = aw88271_trigger,
 };
 
 static struct snd_soc_dai_driver aw88271_dai = {
