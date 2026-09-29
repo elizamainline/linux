@@ -29,6 +29,8 @@ struct apm_graph_mgmt_cmd {
 
 static struct q6apm *g_apm;
 
+static int apm_callback(const struct gpr_resp_pkt *data, void *priv, int op);
+
 int q6apm_send_cmd_sync(struct q6apm *apm, const struct gpr_pkt *pkt,
 			uint32_t rsp_opcode)
 {
@@ -140,14 +142,28 @@ static void q6apm_put_audioreach_graph(struct kref *ref)
 }
 
 
-static int q6apm_get_apm_state(struct q6apm *apm)
+static bool q6apm_get_apm_state(struct q6apm *apm)
 {
-	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(0,
-								APM_CMD_GET_SPF_STATE, 0);
-	if (IS_ERR(pkt))
-		return PTR_ERR(pkt);
+	struct gpr_pkt *pkt;
+	int ret;
 
-	q6apm_send_cmd_sync(apm, pkt, APM_CMD_RSP_GET_SPF_STATE);
+	if (apm->port)
+		pkt = audioreach_alloc_apm_pkt(0, APM_CMD_GET_SPF_STATE, 0,
+						  apm->port->id);
+	else
+		pkt = audioreach_alloc_apm_cmd_pkt(0, APM_CMD_GET_SPF_STATE, 0);
+	if (IS_ERR(pkt))
+		return false;
+
+	ret = audioreach_send_cmd_sync(apm->dev, apm->port ? NULL : apm->gdev,
+				       &apm->result, &apm->lock, apm->port,
+				       &apm->wait, pkt, APM_CMD_RSP_GET_SPF_STATE);
+	kfree(pkt);
+	if (ret)
+		return false;
+	if (apm->port)
+		dev_info(apm->dev, "SPF state on GPR source port %u: %u\n",
+			 apm->port->id, apm->state);
 
 	return apm->state;
 }
@@ -860,6 +876,7 @@ static int apm_probe(gpr_device_t *gdev)
 {
 	struct device *dev = &gdev->dev;
 	struct q6apm *apm;
+	u32 spf_port;
 	int ret;
 
 	apm = devm_kzalloc(dev, sizeof(*apm), GFP_KERNEL);
@@ -872,6 +889,12 @@ static int apm_probe(gpr_device_t *gdev)
 	apm->dev = dev;
 	apm->gdev = gdev;
 	init_waitqueue_head(&apm->wait);
+	if (!of_property_read_u32(dev->of_node, "qcom,spf-core-port", &spf_port)) {
+		apm->port = gpr_alloc_port_fixed(gdev, dev, apm_callback,
+						gdev, spf_port);
+		if (IS_ERR(apm->port))
+			return PTR_ERR(apm->port);
+	}
 
 	INIT_LIST_HEAD(&apm->widget_list);
 	idr_init(&apm->graph_idr);
@@ -888,20 +911,33 @@ static int apm_probe(gpr_device_t *gdev)
 	ret = snd_soc_register_component(dev, &q6apm_audio_component, NULL, 0);
 	if (ret < 0) {
 		dev_err(dev, "failed to register q6apm: %d\n", ret);
-		return ret;
+		goto free_port;
 	}
 
 	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
-	if (ret)
+	if (ret) {
 		snd_soc_unregister_component(dev);
+		goto free_port;
+	}
 
+	return 0;
+
+free_port:
+	if (apm->port)
+		gpr_free_port(apm->port);
+	g_apm = NULL;
 	return ret;
 }
 
 static void apm_remove(gpr_device_t *gdev)
 {
+	struct q6apm *apm = dev_get_drvdata(&gdev->dev);
+
 	of_platform_depopulate(&gdev->dev);
 	snd_soc_unregister_component(&gdev->dev);
+	if (apm->port)
+		gpr_free_port(apm->port);
+	g_apm = NULL;
 }
 
 struct audioreach_module *q6apm_find_module_by_mid(struct q6apm_graph *graph, uint32_t mid)
