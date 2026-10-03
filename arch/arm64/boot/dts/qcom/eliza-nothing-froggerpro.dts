@@ -667,19 +667,21 @@
 			output-enable;
 		};
 
+		/* Amplifier voltage/current feedback. */
 		data0-pins {
 			pins = "gpio64";
 			function = "i2s0_data0";
 			drive-strength = <8>;
-			bias-disable;
-			output-enable;
+			bias-pull-down;
 		};
 
+		/* Speaker playback. */
 		data1-pins {
 			pins = "gpio63";
 			function = "i2s0_data1";
 			drive-strength = <8>;
-			bias-pull-down;
+			bias-disable;
+			output-enable;
 		};
 	};
 
