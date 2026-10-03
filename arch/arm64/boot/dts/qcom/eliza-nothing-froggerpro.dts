@@ -656,6 +656,7 @@
 			function = "i2s0_sck";
 			drive-strength = <8>;
 			bias-disable;
+			output-enable;
 		};
 
 		ws-pins {
@@ -663,6 +664,7 @@
 			function = "i2s0_ws";
 			drive-strength = <8>;
 			bias-disable;
+			output-enable;
 		};
 
 		data0-pins {
@@ -670,6 +672,7 @@
 			function = "i2s0_data0";
 			drive-strength = <8>;
 			bias-disable;
+			output-enable;
 		};
 
 		data1-pins {
