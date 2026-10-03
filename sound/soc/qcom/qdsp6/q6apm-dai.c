@@ -217,6 +217,9 @@ static int q6apm_dai_prepare(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct q6apm_dai_rtd *prtd = runtime->private_data;
 	struct audioreach_module_config cfg = {};
+	struct audioreach_module_config output_cfg;
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dpcm *dpcm;
 	struct device *dev = component->dev;
 	struct q6apm_dai_data *pdata;
 	int ret;
@@ -272,16 +275,33 @@ static int q6apm_dai_prepare(struct snd_soc_component *component,
 
 	}
 
-	ret = q6apm_graph_media_format_pcm(prtd->graph, &cfg);
-	if (ret < 0) {
-		dev_err(dev, "%s: CMD Format block failed\n", __func__);
-		return ret;
-	}
-
-	/* rate and channels are sent to audio driver */
+	/* Configure the input before setting the converters' output format. */
 	ret = q6apm_graph_media_format_shmem(prtd->graph, &cfg);
 	if (ret < 0) {
 		dev_err(dev, "Failed to set media format %d\n", ret);
+		return ret;
+	}
+
+	output_cfg = cfg;
+	/* A single playback backend determines the stream's output format. */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+	    list_is_singular(&rtd->dpcm[substream->stream].be_clients)) {
+		for_each_dpcm_be(rtd, substream->stream, dpcm) {
+			struct snd_pcm_hw_params *params =
+				&dpcm->be->dpcm[substream->stream].hw_params;
+
+			output_cfg.sample_rate = params_rate(params);
+			output_cfg.num_channels = params_channels(params);
+			output_cfg.bit_width = params_width(params);
+			memset(output_cfg.channel_map, 0, sizeof(output_cfg.channel_map));
+			audioreach_set_default_channel_mapping(output_cfg.channel_map,
+							     output_cfg.num_channels);
+			break;
+		}
+	}
+	ret = q6apm_graph_media_format_pcm(prtd->graph, &output_cfg);
+	if (ret < 0) {
+		dev_err(dev, "%s: CMD Format block failed\n", __func__);
 		return ret;
 	}
 
