@@ -217,13 +217,54 @@
 		};
 	};
 
+	wcd9378: audio-codec {
+		compatible = "qcom,wcd9378-codec";
+		#sound-dai-cells = <1>;
+		reset-gpios = <&tlmm 150 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&wcd_reset_default>;
+		pinctrl-names = "default";
+
+		vdd-buck-supply = <&vreg_l7b>;
+		vdd-rxtx-supply = <&vreg_l7b>;
+		vdd-io-supply = <&vreg_l3g>;
+		vdd-mic-bias-supply = <&vreg_bob>;
+
+		qcom,micbias1-microvolt = <2750000>;
+		qcom,micbias2-microvolt = <2700000>;
+		qcom,micbias3-microvolt = <2750000>;
+		qcom,rx-device = <&wcd9378_rx>;
+		qcom,tx-device = <&wcd9378_tx>;
+	};
+
 	sound {
 		compatible = "nothing,froggerpro-sndcard", "qcom,sm8450-sndcard";
 		model = "Nothing Phone (4a) Pro";
 		pinctrl-0 = <&pri_mi2s_default>;
 		pinctrl-names = "default";
 		audio-routing = "Speaker 0", "Spkr0 OUT",
-				"Speaker 1", "Spkr1 OUT";
+				"Speaker 1", "Spkr1 OUT",
+				"AMIC1", "Microphone 1",
+				"AMIC1", "MIC BIAS1",
+				"AMIC3", "Microphone 3",
+				"AMIC3", "MIC BIAS3",
+				"TX SWR_INPUT0", "ADC1_OUTPUT",
+				"TX SWR_INPUT4", "ADC2_OUTPUT";
+
+		wcd-capture-dai-link {
+			link-name = "WCD Capture";
+
+			cpu {
+				sound-dai = <&q6apmbedai TX_CODEC_DMA_TX_3>;
+			};
+
+			codec {
+				sound-dai = <&wcd9378 1>, <&swr2 0>, <&lpass_txmacro 0>;
+			};
+
+			platform {
+				sound-dai = <&q6apm>;
+			};
+		};
 
 		pri-mi2s-playback-dai-link {
 			link-name = "Primary MI2S Speaker Playback";
@@ -421,6 +462,7 @@
 		compatible = "qcom,pm8550vs-rpmh-regulators";
 
 		vdd-l1-supply = <&vreg_s2b>;
+		vdd-l3-supply = <&vreg_s2b>;
 
 		qcom,pmic-id = "g";
 
@@ -429,6 +471,13 @@
 			/* Stock FocalTech driver requests 1.8 V on this rail. */
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l3g: ldo3 {
+			regulator-name = "vreg_l3g";
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
@@ -591,6 +640,39 @@
 	status = "okay";
 };
 
+&lpass_rxmacro {
+	status = "okay";
+};
+
+&lpass_txmacro {
+	status = "okay";
+};
+
+&swr1 {
+	status = "okay";
+
+	wcd9378_rx: codec@0,4 {
+		compatible = "sdw20217011000";
+		reg = <0 4>;
+		qcom,port-mapping = <1 2 3 4 5>;
+	};
+};
+
+&swr2 {
+	/* One master port per ADC preserves the stock slave offsets/lanes. */
+	qcom,ports-sinterval-low =	/bits/ 8 <0x01 0x01 0x01 0x03 0x03>;
+	qcom,ports-offset1 =		/bits/ 8 <0x01 0x01 0x00 0x01 0x01>;
+	qcom,ports-lane-control =	/bits/ 8 <0x00 0x01 0x01 0x00 0x00>;
+	status = "okay";
+
+	wcd9378_tx: codec@0,3 {
+		compatible = "sdw20217011000";
+		reg = <0 3>;
+		qcom,control-device;
+		qcom,port-mapping = <1 2 3 4 5>;
+	};
+};
+
 &q6apm {
 	qcom,spf-core-port = <3>;
 };
@@ -648,6 +730,13 @@
 	wifi_sw_ctrl: wifi-sw-ctrl-state {
 		pins = "gpio81";
 		function = "wcn_sw_ctrl";
+	};
+
+	wcd_reset_default: wcd-reset-default-state {
+		pins = "gpio150";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
 	};
 
 	pri_mi2s_default: pri-mi2s-default-state {
