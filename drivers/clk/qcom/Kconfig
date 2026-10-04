@@ -19,6 +19,18 @@ menuconfig COMMON_CLK_QCOM
 
 if COMMON_CLK_QCOM
 
+config CLK_ELIZA_CAMCC
+	tristate "Eliza Camera Clock Controllers"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_ELIZA_GCC
+	select QCOM_GDSC
+	default m if ARCH_QCOM
+	help
+	  Support for the camera and camera sensor master clock controllers
+	  on Qualcomm Eliza (SM7750) devices. These controllers provide the
+	  clocks and resets for the camera subsystem and sensor master clocks,
+	  along with the camera subsystem power domains.
+
 config CLK_ELIZA_DISPCC
 	tristate "Eliza Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
