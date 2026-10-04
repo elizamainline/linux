@@ -3339,6 +3339,7 @@ static const struct camss_subdev_resources csiphy_res_eliza[] = {
 		.reg = { "csiphy0" },
 		.interrupt = { "csiphy0" },
 		.csiphy = {
+			.id = 0,
 			.hw_ops = &csiphy_ops_2_2_1,
 			.formats = &csiphy_formats_sdm845,
 		},
@@ -3353,6 +3354,7 @@ static const struct camss_subdev_resources csiphy_res_eliza[] = {
 		.reg = { "csiphy1" },
 		.interrupt = { "csiphy1" },
 		.csiphy = {
+			.id = 1,
 			.hw_ops = &csiphy_ops_2_2_1,
 			.formats = &csiphy_formats_sdm845,
 		},
@@ -3367,6 +3369,7 @@ static const struct camss_subdev_resources csiphy_res_eliza[] = {
 		.reg = { "csiphy2" },
 		.interrupt = { "csiphy2" },
 		.csiphy = {
+			.id = 2,
 			.hw_ops = &csiphy_ops_2_2_1,
 			.formats = &csiphy_formats_sdm845,
 		},
@@ -3381,6 +3384,7 @@ static const struct camss_subdev_resources csiphy_res_eliza[] = {
 		.reg = { "csiphy3" },
 		.interrupt = { "csiphy3" },
 		.csiphy = {
+			.id = 3,
 			.hw_ops = &csiphy_ops_2_2_1,
 			.formats = &csiphy_formats_sdm845,
 		},
