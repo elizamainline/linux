@@ -495,6 +495,7 @@ static int ctrl_cmd_new_server(struct sockaddr_qrtr *from,
 {
 	struct qrtr_lookup *lookup;
 	struct qrtr_server *srv;
+	struct qrtr_node *node;
 	struct list_head *li;
 	int ret = 0;
 
@@ -503,6 +504,13 @@ static int ctrl_cmd_new_server(struct sockaddr_qrtr *from,
 		node_id = from->sq_node;
 		port = from->sq_port;
 	}
+
+	/* A HELLO exchange can repeat a remote's existing service list. */
+	node = xa_load(&nodes, node_id);
+	srv = node ? xa_load(&node->servers, port) : NULL;
+	if (from->sq_node != qrtr_ns.local_node && srv &&
+	    srv->service == service && srv->instance == instance)
+		return 0;
 
 	srv = server_add(service, instance, node_id, port);
 	if (!srv)
