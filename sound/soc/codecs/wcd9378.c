@@ -655,11 +655,19 @@ static int wcd9378_connect_port(struct wcd9378_sdw_priv *wcd, u8 port_idx,
 	u8 ch_mask = ch_info->ch_mask;
 	u8 mstr_port_num, mstr_ch_mask;
 	struct sdw_slave *sdev = wcd->sdev;
+	int i;
 
 	port_config->num = port_num;
 
 	mstr_port_num = sdev->m_port_map[port_num];
 	mstr_ch_mask = ch_info->master_ch_mask;
+	if (wcd->is_tx && ch_id <= WCD9378_ADC3) {
+		/* ADCs use channel 1 on separate slave ports. */
+		mstr_ch_mask = BIT(0);
+		for (i = WCD9378_ADC1; i < ch_id; i++)
+			if (sdev->m_port_map[wcd->ch_info[i].port_num] == mstr_port_num)
+				mstr_ch_mask <<= 1;
+	}
 
 	if (enable) {
 		port_config->ch_mask |= ch_mask;
