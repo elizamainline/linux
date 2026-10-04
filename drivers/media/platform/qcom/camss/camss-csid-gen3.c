@@ -78,7 +78,7 @@
 					(0x300 + 0x100 * (rdi)) :\
 					(0x500 + 0x100 * (rdi)))
 #define		RDI_CFG0_TIMESTAMP_EN		BIT(6)
-#define		RDI_CFG0_TIMESTAMP_STB_SEL	BIT(8)
+#define		RDI_CFG0_TIMESTAMP_STB_SEL	GENMASK(9, 8)
 #define		RDI_CFG0_DECODE_FORMAT		12
 #define		RDI_CFG0_DT			16
 #define		RDI_CFG0_VC			22
@@ -186,7 +186,9 @@ static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 
 	u8 dt_id = port & 0x03;
 
 	val = RDI_CFG0_TIMESTAMP_EN;
-	val |= RDI_CFG0_TIMESTAMP_STB_SEL;
+	/* Titan 970 Lite selects the timestamp strobe with value 2. */
+	val |= FIELD_PREP(RDI_CFG0_TIMESTAMP_STB_SEL,
+			  csid->camss->res->version == CAMSS_ELIZA ? 2 : 1);
 	/* note: for non-RDI path, this should be format->decode_format */
 	val |= DECODE_FORMAT_PAYLOAD_ONLY << RDI_CFG0_DECODE_FORMAT;
 	val |= vc << RDI_CFG0_VC;
