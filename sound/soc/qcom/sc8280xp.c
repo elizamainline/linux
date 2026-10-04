@@ -39,6 +39,8 @@ static struct snd_soc_dapm_widget sc8280xp_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_widget froggerpro_dapm_widgets[] = {
+	SND_SOC_DAPM_MIC("Microphone 1", NULL),
+	SND_SOC_DAPM_MIC("Microphone 3", NULL),
 	SND_SOC_DAPM_SPK("Speaker 0", NULL),
 	SND_SOC_DAPM_SPK("Speaker 1", NULL),
 };
