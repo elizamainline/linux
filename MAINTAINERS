@@ -24924,6 +24924,13 @@ F:	include/linux/phylink.h
 F:	include/linux/sfp.h
 K:	phylink\.h|struct\s+phylink|\.phylink|>phylink_|phylink_(autoneg|clear|connect|create|destroy|disconnect|ethtool|helper|mac|mii|of|set|start|stop|test|validate)
 
+SG MICRO SGM38120 REGULATOR DRIVER
+M:	Oleksii Onchul <oleksiionchul@gmail.com>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/regulator/sgmicro,sgm38120.yaml
+F:	drivers/regulator/sgm38120.c
+
 SHARED MEMORY COMMUNICATIONS (SMC) SOCKETS
 M:	D. Wythe <alibuda@linux.alibaba.com>
 M:	Dust Li <dust.li@linux.alibaba.com>
