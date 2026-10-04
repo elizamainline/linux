@@ -2963,6 +2963,9 @@
 			assigned-clocks = <&camcc CAM_CC_CCI_0_CLK>;
 			assigned-clock-rates = <37500000>;
 			power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&cci0_i2c0_default &cci0_i2c1_default>;
+			pinctrl-1 = <&cci0_i2c0_sleep &cci0_i2c1_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -2972,9 +2975,6 @@
 				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				pinctrl-names = "default", "sleep";
-				pinctrl-0 = <&cci0_i2c0_default>;
-				pinctrl-1 = <&cci0_i2c0_sleep>;
 				status = "disabled";
 			};
 			cci0_i2c1: i2c-bus@1 {
@@ -2982,9 +2982,6 @@
 				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				pinctrl-names = "default", "sleep";
-				pinctrl-0 = <&cci0_i2c1_default>;
-				pinctrl-1 = <&cci0_i2c1_sleep>;
 				status = "disabled";
 			};
 		};
@@ -2999,6 +2996,9 @@
 			assigned-clocks = <&camcc CAM_CC_CCI_1_CLK>;
 			assigned-clock-rates = <37500000>;
 			power-domains = <&camcc CAM_CC_TITAN_TOP_GDSC>;
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&cci1_i2c0_default &cci1_i2c1_default>;
+			pinctrl-1 = <&cci1_i2c0_sleep &cci1_i2c1_sleep>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -3008,9 +3008,6 @@
 				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				pinctrl-names = "default", "sleep";
-				pinctrl-0 = <&cci1_i2c0_default>;
-				pinctrl-1 = <&cci1_i2c0_sleep>;
 				status = "disabled";
 			};
 			cci1_i2c1: i2c-bus@1 {
@@ -3018,9 +3015,6 @@
 				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				pinctrl-names = "default", "sleep";
-				pinctrl-0 = <&cci1_i2c1_default>;
-				pinctrl-1 = <&cci1_i2c1_sleep>;
 				status = "disabled";
 			};
 		};
