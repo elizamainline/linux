@@ -340,6 +340,7 @@ static u32 vfe_src_pad_code(struct vfe_line *line, u32 sink_code,
 			return sink_code;
 		}
 		break;
+	case CAMSS_ELIZA:
 	case CAMSS_660:
 	case CAMSS_2290:
 	case CAMSS_6150:
@@ -2003,6 +2004,7 @@ static int vfe_bpl_align_rdi(struct vfe_device *vfe)
 	int ret = 8;
 
 	switch (vfe->camss->res->version) {
+	case CAMSS_ELIZA:
 	case CAMSS_6150:
 	case CAMSS_6350:
 	case CAMSS_7280:

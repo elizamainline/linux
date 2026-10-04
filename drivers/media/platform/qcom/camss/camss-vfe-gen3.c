@@ -30,7 +30,8 @@
 #define VFE_BUS_WM_TEST_BUS_CTRL_690 (BUS_REG_BASE + 0xFC)
 #define VFE_BUS_WM_TEST_BUS_CTRL_780 (BUS_REG_BASE + 0xDC)
 #define VFE_BUS_WM_TEST_BUS_CTRL \
-	    (IS_VFE_690(vfe) ? VFE_BUS_WM_TEST_BUS_CTRL_690 \
+	    (vfe->camss->res->version == CAMSS_ELIZA ? BUS_REG_BASE + 0x128 : \
+	     IS_VFE_690(vfe) ? VFE_BUS_WM_TEST_BUS_CTRL_690 \
 	     : VFE_BUS_WM_TEST_BUS_CTRL_780)
 /*
  * Bus client mapping:
@@ -50,25 +51,28 @@
 #define VFE_BUS_WM_CGC_OVERRIDE		(BUS_REG_BASE + 0x08)
 #define		WM_CGC_OVERRIDE_ALL		(0x7FFFFFF)
 
-#define VFE_BUS_WM_CFG(n)		(BUS_REG_BASE + 0x200 + (n) * 0x100)
+#define VFE_BUS_WM_BASE(n)	(BUS_REG_BASE + \
+		(vfe->camss->res->version == CAMSS_ELIZA ? 0x500 : 0x200) + (n) * 0x100)
+#define VFE_BUS_WM_CFG(n)		VFE_BUS_WM_BASE(n)
 #define		WM_CFG_EN			BIT(0)
 #define		WM_VIR_FRM_EN			BIT(1)
 #define		WM_CFG_MODE			BIT(16)
-#define VFE_BUS_WM_IMAGE_ADDR(n)	(BUS_REG_BASE + 0x204 + (n) * 0x100)
-#define VFE_BUS_WM_FRAME_INCR(n)	(BUS_REG_BASE + 0x208 + (n) * 0x100)
-#define VFE_BUS_WM_IMAGE_CFG_0(n)	(BUS_REG_BASE + 0x20c + (n) * 0x100)
+#define VFE_BUS_WM_IMAGE_ADDR(n)	(VFE_BUS_WM_BASE(n) + 0x04)
+#define VFE_BUS_WM_FRAME_INCR(n)	(VFE_BUS_WM_BASE(n) + 0x08)
+#define VFE_BUS_WM_IMAGE_CFG_0(n)	(VFE_BUS_WM_BASE(n) + 0x0c)
 #define		WM_IMAGE_CFG_0_DEFAULT_WIDTH	(0xFFFF)
-#define VFE_BUS_WM_IMAGE_CFG_2(n)	(BUS_REG_BASE + 0x214 + (n) * 0x100)
+#define VFE_BUS_WM_IMAGE_CFG_2(n)	(VFE_BUS_WM_BASE(n) + 0x14)
 #define		WM_IMAGE_CFG_2_DEFAULT_STRIDE	(0xFFFF)
-#define VFE_BUS_WM_PACKER_CFG(n)	(BUS_REG_BASE + 0x218 + (n) * 0x100)
+#define VFE_BUS_WM_PACKER_CFG(n)	(VFE_BUS_WM_BASE(n) + 0x18)
 
-#define VFE_BUS_WM_IRQ_SUBSAMPLE_PERIOD(n)	(BUS_REG_BASE + 0x230 + (n) * 0x100)
-#define VFE_BUS_WM_IRQ_SUBSAMPLE_PATTERN(n)	(BUS_REG_BASE + 0x234 + (n) * 0x100)
-#define VFE_BUS_WM_FRAMEDROP_PERIOD(n)		(BUS_REG_BASE + 0x238 + (n) * 0x100)
-#define VFE_BUS_WM_FRAMEDROP_PATTERN(n)		(BUS_REG_BASE + 0x23c + (n) * 0x100)
+#define VFE_BUS_WM_IRQ_SUBSAMPLE_PERIOD(n)	(VFE_BUS_WM_BASE(n) + 0x30)
+#define VFE_BUS_WM_IRQ_SUBSAMPLE_PATTERN(n)	(VFE_BUS_WM_BASE(n) + 0x34)
+#define VFE_BUS_WM_FRAMEDROP_PERIOD(n)		(VFE_BUS_WM_BASE(n) + 0x38)
+#define VFE_BUS_WM_FRAMEDROP_PATTERN(n)		(VFE_BUS_WM_BASE(n) + 0x3c)
 
-#define VFE_BUS_WM_MMU_PREFETCH_CFG(n)		(BUS_REG_BASE + 0x260 + (n) * 0x100)
-#define VFE_BUS_WM_MMU_PREFETCH_MAX_OFFSET(n)	(BUS_REG_BASE + 0x264 + (n) * 0x100)
+#define VFE_BUS_WM_MMU_PREFETCH_CFG(n)		(VFE_BUS_WM_BASE(n) + 0x60)
+#define VFE_BUS_WM_MMU_PREFETCH_MAX_OFFSET(n)	(VFE_BUS_WM_BASE(n) + 0x64)
+#define VFE_BUS_WM_ADDR_CFG(n)			(VFE_BUS_WM_BASE(n) + 0x70)
 
 static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 {
@@ -94,6 +98,8 @@ static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 	writel(WM_IMAGE_CFG_2_DEFAULT_STRIDE,
 	       vfe->base + VFE_BUS_WM_IMAGE_CFG_2(wm));
 	writel(0, vfe->base + VFE_BUS_WM_PACKER_CFG(wm));
+	if (vfe->camss->res->version == CAMSS_ELIZA)
+		writel(0, vfe->base + VFE_BUS_WM_ADDR_CFG(wm));
 
 	/* TOP CORE CFG */
 	if (IS_VFE_690(vfe))
@@ -101,8 +107,11 @@ static void vfe_wm_start(struct vfe_device *vfe, u8 wm, struct vfe_line *line)
 			vfe->base + VFE_TOP_CORE_CFG);
 
 	/* no dropped frames, one irq per frame */
-	writel(0, vfe->base + VFE_BUS_WM_FRAMEDROP_PERIOD(wm));
-	writel(1, vfe->base + VFE_BUS_WM_FRAMEDROP_PATTERN(wm));
+	/* Titan 970 has no frame-drop registers in the write master. */
+	if (vfe->camss->res->version != CAMSS_ELIZA) {
+		writel(0, vfe->base + VFE_BUS_WM_FRAMEDROP_PERIOD(wm));
+		writel(1, vfe->base + VFE_BUS_WM_FRAMEDROP_PATTERN(wm));
+	}
 	writel(0, vfe->base + VFE_BUS_WM_IRQ_SUBSAMPLE_PERIOD(wm));
 	writel(1, vfe->base + VFE_BUS_WM_IRQ_SUBSAMPLE_PATTERN(wm));
 

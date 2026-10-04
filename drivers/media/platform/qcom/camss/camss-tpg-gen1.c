@@ -34,6 +34,10 @@
 # define TPG_CTRL_NUM_ACTIVE_VC		GENMASK(31, 30)
 
 #define TPG_CLEAR		0x1F4
+#define TPG_CTRL_CMD_TEST_EN	BIT(4)
+#define TPG_TOP_IRQ_MASK		0x1E4
+#define TPG_TOP_IRQ_CLEAR		0x1E8
+#define TPG_IRQ_CMD		0x1F0
 
 /* TPG VC-based registers */
 #define TPG_VC_n_GAIN_CFG(n)		(0x60 + (n) * 0x60)
@@ -120,6 +124,8 @@ static int tpg_stream_on(struct tpg_device *tpg)
 			return -EINVAL;
 
 		/* VC configuration */
+		if (tpg->camss->res->version == CAMSS_ELIZA)
+			writel(0x100, tpg->base + TPG_VC_n_GAIN_CFG(vc));
 		val = FIELD_PREP(TPG_VC_n_CFG0_NUM_ACTIVE_DT, MSM_TPG_ACTIVE_DT) |
 		      FIELD_PREP(TPG_VC_n_CFG0_NUM_FRAMES, 0);
 		writel(val, tpg->base + TPG_VC_n_CFG0(vc));
@@ -152,7 +158,8 @@ static int tpg_stream_on(struct tpg_device *tpg)
 						 TPG_USER_SPECIFIED_PAYLOAD_DEFAULT) |
 				      FIELD_PREP(TPG_V2_0_0_VC_m_DT_n_CFG_2_ENCODE_FORMAT,
 						 format->encode_format);
-			} else if (tpg->hw_version >= TPG_HW_VER_2_1_0) {
+			} else if (tpg->hw_version >= TPG_HW_VER_2_1_0 ||
+				   tpg->camss->res->version == CAMSS_ELIZA) {
 				val = FIELD_PREP(TPG_VC_m_DT_n_CFG_2_PAYLOAD_MODE, payload_mode) |
 				      FIELD_PREP(TPG_V2_1_0_VC_m_DT_n_CFG_2_USER_SPECIFIED_PAYLOAD,
 						 TPG_USER_SPECIFIED_PAYLOAD_DEFAULT) |
@@ -167,7 +174,13 @@ static int tpg_stream_on(struct tpg_device *tpg)
 	val = FIELD_PREP(TPG_CTRL_TEST_EN, 1) |
 	      FIELD_PREP(TPG_CTRL_NUM_ACTIVE_LANES, lane_cnt - 1) |
 	      FIELD_PREP(TPG_CTRL_NUM_ACTIVE_VC, last_vc);
+	if (tpg->camss->res->version == CAMSS_ELIZA) {
+		val &= ~TPG_CTRL_TEST_EN;
+		val |= 0xa << 16; /* Minimum HBI in asynchronous mode. */
+	}
 	writel(val, tpg->base + TPG_CTRL);
+	if (tpg->camss->res->version == CAMSS_ELIZA)
+		writel(TPG_CTRL_CMD_TEST_EN, tpg->base + TPG_CLEAR);
 
 	return 0;
 }
@@ -175,6 +188,11 @@ static int tpg_stream_on(struct tpg_device *tpg)
 static int tpg_reset(struct tpg_device *tpg)
 {
 	writel(0, tpg->base + TPG_CTRL);
+	if (tpg->camss->res->version == CAMSS_ELIZA) {
+		writel(0, tpg->base + TPG_TOP_IRQ_MASK);
+		writel(3, tpg->base + TPG_TOP_IRQ_CLEAR);
+		writel(1, tpg->base + TPG_IRQ_CMD);
+	}
 	writel(1, tpg->base + TPG_CLEAR);
 
 	return 0;
