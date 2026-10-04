@@ -1,0 +1,136 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/qcom,eliza-camss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Eliza Camera Subsystem (CAMSS)
+
+maintainers:
+  - Oleksii Onchul <oleksiionchul@gmail.com>
+
+description: |
+  Eliza (SM7750) has a Titan 970 camera subsystem. This binding describes
+  the four CSI PHYs, two test pattern generators and the CSID/IFE Lite
+  block used for raw capture.
+  The CSID registers precede the VFE registers in a shared window;
+  their resources must not overlap. The VFE resource starts at its
+  hardware version register, 0x1000 bytes after the CSID resource.
+
+properties:
+  compatible:
+    const: qcom,eliza-camss
+
+  reg:
+    maxItems: 8
+
+  clocks:
+    maxItems: 19
+
+  interrupts:
+    maxItems: 6
+
+  interconnects:
+    maxItems: 2
+
+  iommus:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  reg-names:
+    items:
+      - const: csid_lite0
+      - const: vfe_lite0
+      - const: csiphy0
+      - const: csiphy1
+      - const: csiphy2
+      - const: csiphy3
+      - const: tpg0
+      - const: tpg1
+
+  clock-names:
+    items:
+      - const: csiphy0
+      - const: csiphy0_timer
+      - const: csiphy1
+      - const: csiphy1_timer
+      - const: csiphy2
+      - const: csiphy2_timer
+      - const: csiphy3
+      - const: csiphy3_timer
+      - const: vfe_lite_csid
+      - const: vfe_lite_cphy_rx
+      - const: gcc_axi_hf
+      - const: cpas_ahb
+      - const: cpas_fast_ahb
+      - const: camnoc_axi
+      - const: cpas_ife_lite
+      - const: vfe_lite_ahb
+      - const: vfe_lite
+      - const: tpg
+      - const: tpg_cphy_rx
+
+  interrupt-names:
+    items:
+      - const: csid_lite0
+      - const: vfe_lite0
+      - const: csiphy0
+      - const: csiphy1
+      - const: csiphy2
+      - const: csiphy3
+
+  interconnect-names:
+    items:
+      - const: ahb
+      - const: hf_0_mnoc
+
+  vdda-phy-supply:
+    description: 0.88 V supply to the CSI PHYs.
+
+  vdda-pll-supply:
+    description: 1.2 V supply to the CSI PHY PLLs.
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: CSI input ports, one per PHY; only D-PHY is supported.
+
+    patternProperties:
+      "^port@[0-3]$":
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+
+        properties:
+          endpoint:
+            $ref: video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              bus-type:
+                const: 4
+
+              data-lanes:
+                minItems: 1
+                maxItems: 4
+                items:
+                  minimum: 0
+                  maximum: 3
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-names
+  - interconnects
+  - interconnect-names
+  - iommus
+  - power-domains
+  - vdda-phy-supply
+  - vdda-pll-supply
+  - ports
+
+additionalProperties: false
