@@ -9,8 +9,12 @@ two TPG v1.4 generators, and two CCI controllers with four I2C buses.
 The FroggerPro device tree enables these blocks, the CSI analog supplies
 and the Sony IMX355 ultrawide sensor using the existing mainline driver.
 
-This is a bring-up implementation: device boot, interrupts, DMA and frame
-capture still need hardware validation. The other physical sensors, C-PHY,
+The first device boot reached CAMSS entity registration and configured the
+SGM38120 camera PMIC. IMX355's initial chip-ID read timed out on CCI0 master
+0, queue 0. The CCI pinctrl states have since been moved from the I2C
+adapter nodes to their controller nodes so the platform probe selects them.
+Sensor detection, capture interrupts, DMA and frames still need hardware
+validation. The other physical sensors, C-PHY,
 full TFE processing and ISP image processing are outside the initial
 support. The test generators can exercise CSID and VFE without a sensor;
 they do not exercise the external PHYs or CCI buses.
