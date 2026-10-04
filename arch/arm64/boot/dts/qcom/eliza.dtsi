@@ -2416,8 +2416,8 @@
 			pinctrl-0 = <&tx_swr_active>;
 			pinctrl-names = "default";
 
-			qcom,din-ports = <5>;
-			qcom,dout-ports = <0>;
+			qcom,din-ports = <4>;
+			qcom,dout-ports = <1>;
 			qcom,ports-sinterval-low =	/bits/ 8 <0x01 0x01 0x03 0x03 0x07>;
 			qcom,ports-offset1 =		/bits/ 8 <0x00 0x00 0x01 0x01 0x00>;
 			qcom,ports-offset2 =		/bits/ 8 <0x00 0x00 0x00 0x00 0x00>;
