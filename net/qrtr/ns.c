@@ -329,6 +329,28 @@ static int server_del(struct qrtr_node *node, unsigned int port, bool bcast)
 
 static int ctrl_cmd_hello(struct sockaddr_qrtr *sq)
 {
+	struct qrtr_ctrl_pkt pkt = { .cmd = cpu_to_le32(QRTR_TYPE_HELLO) };
+	struct msghdr msg = {
+		.msg_name = sq,
+		.msg_namelen = sizeof(*sq),
+	};
+	struct kvec iv = {
+		.iov_base = &pkt,
+		.iov_len = sizeof(pkt),
+	};
+	int ret;
+
+	/*
+	 * The peer can send HELLO before the endpoint's scheduled HELLO has
+	 * run. Reply first so the core's HELLO gate permits our announcements.
+	 */
+	ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
+	if (ret < 0) {
+		pr_err("failed to send hello to %u:%u: %d\n",
+		       sq->sq_node, sq->sq_port, ret);
+		return ret;
+	}
+
 	return announce_servers(sq);
 }
 
