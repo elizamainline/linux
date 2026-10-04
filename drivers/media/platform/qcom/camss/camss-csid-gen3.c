@@ -59,6 +59,7 @@
 #define		RUP_DONE_IRQ_STATUS		BIT(23)
 
 #define CSID_CSI2_RDIN_IRQ_CLEAR(rdi)	(0xF4 + 0x10 * (rdi))
+#define CSID_CSI2_RDIN_IRQ_MASK(rdi)	(0xF0 + 0x10 * (rdi))
 #define CSID_CSI2_RDIN_IRQ_SET(rdi)	(0xF8 + 0x10 * (rdi))
 
 #define CSID_CSI2_RX_CFG0		0x200
@@ -201,6 +202,9 @@ static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 
 	val |= RDI_CFG1_CROP_H_EN;
 	val |= RDI_CFG1_CROP_V_EN;
 
+	/* Leave crop and drop disabled for the Titan 970 Lite raw paths. */
+	if (csid->camss->res->version == CAMSS_ELIZA)
+		val = RDI_CFG1_PACKING_FORMAT_MIPI | RDI_CFG1_PIX_STORE;
 	writel(val, csid->base + CSID_RDI_CFG1(port));
 
 	val = 0;
@@ -216,6 +220,8 @@ static void __csid_configure_rdi_stream(struct csid_device *csid, u8 enable, u8 
 
 	if (enable)
 		val |= RDI_CFG0_EN;
+	else if (csid->camss->res->version == CAMSS_ELIZA)
+		val &= ~RDI_CFG0_EN;
 	writel(val, csid->base + CSID_RDI_CFG0(port));
 }
 
@@ -341,6 +347,20 @@ static int csid_reset(struct csid_device *csid)
 	if (!time) {
 		dev_err(csid->camss->dev, "CSID reset timeout\n");
 		return -EIO;
+	}
+
+	if (csid->camss->res->version == CAMSS_ELIZA) {
+		u32 buf_mask = 0;
+		u32 top_mask = TOP_IRQ_STATUS_RESET_DONE | BIT(13);
+
+		for (i = 0; i < MSM_CSID_MAX_SRC_STREAMS; i++) {
+			writel(RUP_DONE_IRQ_STATUS,
+			       csid->base + CSID_CSI2_RDIN_IRQ_MASK(i));
+			buf_mask |= BIT(BUF_DONE_IRQ_STATUS_RDI_OFFSET + i);
+			top_mask |= BIT(8 + i);
+		}
+		writel(buf_mask, csid->base + CSID_BUF_DONE_IRQ_MASK);
+		writel(top_mask, csid->base + CSID_TOP_IRQ_MASK);
 	}
 
 	return 0;
