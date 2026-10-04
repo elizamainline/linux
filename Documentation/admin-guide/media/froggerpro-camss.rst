@@ -13,6 +13,7 @@ The first device boot reached CAMSS entity registration and configured the
 SGM38120 camera PMIC. IMX355's initial chip-ID read timed out on CCI0 master
 0, queue 0. The CCI pinctrl states have since been moved from the I2C
 adapter nodes to their controller nodes so the platform probe selects them.
+The next boot log no longer reports the CCI timeout or IMX355 probe failure.
 Sensor detection, capture interrupts, DMA and frames still need hardware
 validation. The other physical sensors, C-PHY,
 full TFE processing and ISP image processing are outside the initial
@@ -70,6 +71,69 @@ and ``msm_vfe0_rdi0``. Device numbering may differ. There should be four
 VFE video nodes and four CCI adapters. With the sensor endpoint present,
 CAMSS completes media registration after IMX355 binds. If sensor probe
 fails, inspect the IMX355 and SGM38120 errors before testing TPG capture.
+
+Capture diagnostics
+-------------------
+
+CAMSS is a media-controller capture device. Applications must configure
+the links and pad formats before streaming; its RDI outputs contain raw
+Bayer data that needs conversion for display. A camera application's
+empty preview alone does not establish whether raw capture works.
+
+On Alpine/postmarketOS, install the diagnostic commands as root::
+
+    apk add v4l-utils libcamera-tools
+
+The Alpine packages `v4l-utils
+<https://pkgs.alpinelinux.org/package/edge/community/aarch64/v4l-utils>`_
+and `libcamera-tools
+<https://pkgs.alpinelinux.org/package/edge/community/aarch64/libcamera-tools>`_
+provide ``media-ctl``/``v4l2-ctl`` and ``cam``, respectively.
+
+Copy ``tools/media/froggerpro-capture.sh`` to the phone and run it with
+``media-ctl`` and ``v4l2-ctl`` installed, after closing camera applications::
+
+    sudo sh froggerpro-capture.sh imx355-bars
+    sudo sh froggerpro-capture.sh tpg
+    sudo sh froggerpro-capture.sh imx355
+
+Run the first two tests separately to distinguish sensor/PHY problems
+from CSID/VFE problems. The helper finds the CAMSS media device and
+IMX355 entity, configures RDI0 and requests ten frames with a 20-second
+timeout. Set ``MEDIA_DEVICE=/dev/mediaN`` to select a particular device.
+It resets mutable links and leaves the selected pad formats and test
+pattern configured after the test.
+
+Each invocation prints a new directory under ``/tmp`` containing
+``commands.log``, media topologies, IRQ counters before and after capture,
+the kernel log and any raw frames. Commands stop at the first failure;
+diagnostics are saved even if capture times out. Preserve these files
+when reporting a failure. Absence of boot probe errors does not confirm
+sensor detection; the helper also checks for IMX355 in the topology.
+
+For additional driver diagnostics, enable CAMSS dynamic debug before
+running the helper, if the kernel provides the control file::
+
+    echo 'module qcom_camss +p' | sudo tee /sys/kernel/debug/dynamic_debug/control
+
+Disable those messages after collecting the logs::
+
+    echo 'module qcom_camss -p' | sudo tee /sys/kernel/debug/dynamic_debug/control
+
+For GNOME Camera, also test libcamera enumeration as the logged-in user::
+
+    LIBCAMERA_LOG_LEVELS=*:DEBUG cam -l >libcamera-list.log 2>&1
+
+The `libcamera simple pipeline
+<https://github.com/libcamera-org/libcamera/blob/master/src/libcamera/pipeline/simple/simple.cpp>`_
+supports ``qcom-camss`` with its software ISP. GNOME Camera's `Aperture
+<https://gnome.pages.gitlab.gnome.org/snapshot/aperture/>`_ library uses
+GStreamer and PipeWire. If raw capture works but the app does not, inspect
+``libcamera-list.log`` and the PipeWire/WirePlumber user-service logs before
+changing sensor register settings. The simple pipeline and software IPA
+must be present in the distribution's libcamera build. Software ISP
+buffer allocation also requires access to the DMA heap or udmabuf device;
+the board configuration already enables ``CONFIG_UDMABUF``.
 
 First capture using TPG0
 -----------------------
