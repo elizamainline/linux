@@ -1499,6 +1499,16 @@ config REGULATOR_SGM3804
 	help
 	  This driver supports SGMicro SGM3804 dual-output voltage regulator.
 
+config REGULATOR_SGM38120
+	tristate "SG Micro SGM38120 camera PMIC"
+	depends on I2C && GPIOLIB
+	select REGMAP_I2C
+	help
+	  Support the seven LDO regulators in the SG Micro SGM38120 camera
+	  power management IC. The driver controls output voltages and enables
+	  over I2C, including the additional 1.2 V mode of LDO5 and LDO7.
+	  This device supplies camera sensors on the Nothing Phone (4a) Pro.
+
 config REGULATOR_SKY81452
 	tristate "Skyworks Solutions SKY81452 voltage regulator"
 	depends on MFD_SKY81452
