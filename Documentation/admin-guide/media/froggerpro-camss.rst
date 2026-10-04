@@ -14,11 +14,41 @@ SGM38120 camera PMIC. IMX355's initial chip-ID read timed out on CCI0 master
 0, queue 0. The CCI pinctrl states have since been moved from the I2C
 adapter nodes to their controller nodes so the platform probe selects them.
 The next boot log no longer reports the CCI timeout or IMX355 probe failure.
-Sensor detection, capture interrupts, DMA and frames still need hardware
-validation. The other physical sensors, C-PHY,
+IMX355 now probes and sends valid RAW10 packets through CSIPHY0, but raw
+capture still stalls before a buffer completes. The other physical sensors, C-PHY,
 full TFE processing and ISP image processing are outside the initial
 support. The test generators can exercise CSID and VFE without a sensor;
 they do not exercise the external PHYs or CCI buses.
+
+Hardware validation on 2026-10-04
+--------------------------------
+
+SSH testing on FroggerPro with kernel ``7.3.0-rc3`` confirms that IMX355
+appears as ``imx355 4-001a`` and libcamera enumerates it. Both sensor color
+bars at 3280 by 2464 RAW10 and TPG0 at 640 by 480 RAW8 successfully reach
+``VIDIOC_STREAMON``, then time out without dequeuing any buffers. TPG0
+also times out on RDI1, RDI2 and RDI3. GNOME Camera's black preview is
+therefore consistent with the raw capture failure.
+
+During streaming, the CSID receiver packet counter advances and its ECC
+and CRC error counters remain zero. A diagnostic packet-header capture
+from IMX355 reports VC0, data type ``0x2b`` and a 4100-byte payload, the
+expected packed RAW10 line size for 3280 pixels. This establishes sensor
+and PHY packet delivery, rather than a completed image in memory.
+
+The Lite 980 common table used by Lite 970 selects timestamp strobe 2.
+With this setting, CSID's SOF and EOF timestamps advance for both sources.
+The VFE write master has an image address programmed, but its consumed
+address and bus-completion status stay zero. Sampling queued MMAP buffers
+prefilled with a marker during a three-second TPG stream found the marker
+unchanged. No SMMU fault accompanied these tests. The remaining failure
+is in frame delivery through the Lite CSID/VFE path; timestamp correction
+alone does not enable DMA or fix the preview.
+
+Experiments with RAW decoding, line-based write-master dimensions,
+additional RUP/AUP commands, frame/IRQ subsampling, a software CSID reset,
+secondary VC/DT matching and VFE routing/clock overrides did not produce
+frames. These experimental settings are not part of the driver change.
 
 Hardware information
 --------------------
@@ -120,6 +150,26 @@ Disable those messages after collecting the logs::
 
     echo 'module qcom_camss -p' | sudo tee /sys/kernel/debug/dynamic_debug/control
 
+For a stalled stream, copy ``tools/media/froggerpro-camss-registers.py``
+to the phone alongside the capture helper. It requires Python 3,
+``/dev/mem`` access and mounted debugfs. Run it while capture is still
+active, keeping the capture process alive until the snapshots finish::
+
+    sudo sh froggerpro-capture.sh tpg &
+    capture_pid=$!
+    sleep 2
+    sudo python3 froggerpro-camss-registers.py >froggerpro-registers.txt
+    wait "$capture_pid"
+
+The script checks the Eliza compatible, CAMSS runtime power and the Lite
+VFE/CSID clock enable counts before each of two snapshots. It opens the
+register window read-only and does not clear IRQs or change configuration.
+It refuses access when CAMSS is suspended or either required clock is
+disabled. Compare receiver counters and RDI timestamps between samples,
+then inspect VFE bus errors, completion status and consumed addresses.
+The packet-header fields are meaningful only if a separate diagnostic
+has enabled packet capture; this script does not enable it.
+
 For GNOME Camera, also test libcamera enumeration as the logged-in user::
 
     LIBCAMERA_LOG_LEVELS=*:DEBUG cam -l >libcamera-list.log 2>&1
@@ -138,8 +188,8 @@ the board configuration already enables ``CONFIG_UDMABUF``.
 First capture using TPG0
 -----------------------
 
-The following is the proposed first hardware test, using 640 by 480 RAW8
-color bars on RDI0. It has not yet been run on FroggerPro. Substitute the
+The following test uses 640 by 480 RAW8 color bars on RDI0. It currently
+times out on FroggerPro as described above. Substitute the
 CAMSS media device for ``/dev/media0`` as needed::
 
     media-ctl -d /dev/media0 -r
@@ -200,7 +250,8 @@ The SGM38120 driver follows the `SG Micro datasheet
 and system-enable bit. It does not enable unused camera outputs. The
 mainline IMX355 driver uses a 360 MHz link frequency in four-lane mode;
 its mode timings differ from the vendor settings. Lane order, power
-sequencing and sensor capture remain to be confirmed on the phone.
+sequencing now permit valid CSI packet reception; DMA capture remains
+unresolved on the phone.
 
 First verify that IMX355 probes successfully and appears in ``media-ctl -p``.
 The driver checks chip ID ``0x0355`` at register ``0x0016``. A read failure
