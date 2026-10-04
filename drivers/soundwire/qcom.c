@@ -757,8 +757,9 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 				break;
 			case SWRM_INTERRUPT_STATUS_MASTER_CLASH_DET:
 				dev_err_ratelimited(ctrl->dev,
-						"%s: SWR bus clsh detected\n",
-						__func__);
+					"SWR bus clash detected: irq %#x, allocated ports %#lx, clock %u Hz\n",
+					intr_sts, ctrl->port_mask,
+					ctrl->bus.params.curr_dr_freq);
 				ctrl->intr_mask &= ~SWRM_INTERRUPT_STATUS_MASTER_CLASH_DET;
 				ctrl->reg_write(ctrl,
 						ctrl->reg_layout[SWRM_REG_INTERRUPT_CPU_EN],
