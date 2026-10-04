@@ -23,3 +23,4 @@ ipa-y			+=	$(IPA_REG_VERSIONS:%=reg/ipa_reg-v%.o)
 ipa-y			+=	$(GSI_REG_VERSIONS:%=reg/gsi_reg-v%.o)
 
 ipa-y			+=	$(IPA_DATA_VERSIONS:%=data/ipa_data-v%.o)
+ipa-y			+=	data/ipa_data-eliza.o
