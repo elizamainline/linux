@@ -293,6 +293,36 @@
 	};
 };
 
+&camss {
+	vdda-phy-supply = <&vreg_l2b>;
+	vdda-pll-supply = <&vreg_l4b>;
+	status = "okay";
+};
+
+&cci0 {
+	status = "okay";
+};
+
+&cci0_i2c0 {
+	status = "okay";
+};
+
+&cci0_i2c1 {
+	status = "okay";
+};
+
+&cci1 {
+	status = "okay";
+};
+
+&cci1_i2c0 {
+	status = "okay";
+};
+
+&cci1_i2c1 {
+	status = "okay";
+};
+
 &ipa {
 	firmware-name = "qcom/sm7750/nothing/froggerpro/ipa_fws.mbn";
 	memory-region = <&ipa_fw_mem>;
@@ -373,14 +403,14 @@
 
 		vreg_l2b: ldo2 {
 			regulator-name = "vreg_l2b";
-			regulator-min-microvolt = <720000>;
+			regulator-min-microvolt = <880000>;
 			regulator-max-microvolt = <950000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_l4b: ldo4 {
 			regulator-name = "vreg_l4b";
-			regulator-min-microvolt = <1080000>;
+			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1320000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
