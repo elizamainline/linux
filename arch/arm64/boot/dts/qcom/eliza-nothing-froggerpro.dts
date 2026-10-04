@@ -284,6 +284,22 @@
 	};
 };
 
+&ipa {
+	firmware-name = "qcom/sm7750/nothing/froggerpro/ipa_fws.mbn";
+	memory-region = <&ipa_fw_mem>;
+	qcom,gsi-loader = "self";
+	status = "okay";
+};
+
+&remoteproc_mpss {
+	firmware-name = "qcom/sm7750/nothing/froggerpro/modem.mbn",
+			"qcom/sm7750/nothing/froggerpro/modem_dtb.mbn";
+	pinctrl-0 = <&uim0_level_shift_en_default>,
+		    <&uim1_level_shift_en_default>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &remoteproc_wpss {
 	firmware-name = "qca6750/wpss.mbn";
 	status = "okay";
@@ -506,6 +522,24 @@
 };
 
 &pmxr2230_gpios {
+	uim1_level_shift_en_default: uim1-level-shift-en-default {
+		pins = "gpio2";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		power-source = <1>;
+		bias-disable;
+		input-disable;
+		output-high;
+	};
+
+	uim0_level_shift_en_default: uim0-level-shift-en-default {
+		pins = "gpio11";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		power-source = <1>;
+		bias-disable;
+		input-disable;
+		output-high;
+	};
+
 	volume_up_default: volume-up-default-state {
 		pins = "gpio6";
 		function = PMIC_GPIO_FUNC_NORMAL;
