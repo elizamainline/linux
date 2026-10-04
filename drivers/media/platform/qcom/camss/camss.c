@@ -3328,6 +3328,122 @@ static const struct resources_icc icc_res_sm8550[] = {
 	},
 };
 
+static const struct camss_subdev_resources csiphy_res_eliza[] = {
+	{
+		.regulators = {
+			{ .supply = "vdda-phy", .init_load_uA = 82290 },
+			{ .supply = "vdda-pll", .init_load_uA = 7810 },
+		},
+		.clock = { "csiphy0", "csiphy0_timer" },
+		.clock_rate = { { 400000000 }, { 400000000 } },
+		.reg = { "csiphy0" },
+		.interrupt = { "csiphy0" },
+		.csiphy = {
+			.hw_ops = &csiphy_ops_2_2_1,
+			.formats = &csiphy_formats_sdm845,
+		},
+	},
+	{
+		.regulators = {
+			{ .supply = "vdda-phy", .init_load_uA = 82290 },
+			{ .supply = "vdda-pll", .init_load_uA = 7810 },
+		},
+		.clock = { "csiphy1", "csiphy1_timer" },
+		.clock_rate = { { 400000000 }, { 400000000 } },
+		.reg = { "csiphy1" },
+		.interrupt = { "csiphy1" },
+		.csiphy = {
+			.hw_ops = &csiphy_ops_2_2_1,
+			.formats = &csiphy_formats_sdm845,
+		},
+	},
+	{
+		.regulators = {
+			{ .supply = "vdda-phy", .init_load_uA = 82290 },
+			{ .supply = "vdda-pll", .init_load_uA = 7810 },
+		},
+		.clock = { "csiphy2", "csiphy2_timer" },
+		.clock_rate = { { 400000000 }, { 400000000 } },
+		.reg = { "csiphy2" },
+		.interrupt = { "csiphy2" },
+		.csiphy = {
+			.hw_ops = &csiphy_ops_2_2_1,
+			.formats = &csiphy_formats_sdm845,
+		},
+	},
+	{
+		.regulators = {
+			{ .supply = "vdda-phy", .init_load_uA = 82290 },
+			{ .supply = "vdda-pll", .init_load_uA = 7810 },
+		},
+		.clock = { "csiphy3", "csiphy3_timer" },
+		.clock_rate = { { 400000000 }, { 400000000 } },
+		.reg = { "csiphy3" },
+		.interrupt = { "csiphy3" },
+		.csiphy = {
+			.hw_ops = &csiphy_ops_2_2_1,
+			.formats = &csiphy_formats_sdm845,
+		},
+	},
+};
+
+static const struct camss_subdev_resources tpg_res_eliza[] = {
+	{
+		.clock = { "cpas_ahb", "tpg", "tpg_cphy_rx" },
+		.clock_rate = { { 80000000 }, { 400000000 }, { 0 } },
+		.reg = { "tpg0" },
+		.tpg = {
+			.lane_cnt = 4,
+			.hw_ops = &tpg_ops_gen1,
+			.formats = &tpg_formats_gen1,
+		},
+	},
+	{
+		.clock = { "cpas_ahb", "tpg", "tpg_cphy_rx" },
+		.clock_rate = { { 80000000 }, { 400000000 }, { 0 } },
+		.reg = { "tpg1" },
+		.tpg = {
+			.lane_cnt = 4,
+			.hw_ops = &tpg_ops_gen1,
+			.formats = &tpg_formats_gen1,
+		},
+	},
+};
+
+/* Only the Titan 970 Lite raw paths are supported initially. */
+static const struct camss_subdev_resources csid_res_eliza[] = {
+	{
+		.clock = { "vfe_lite_csid", "vfe_lite_cphy_rx" },
+		.clock_rate = { { 400000000, 480000000 }, { 0 } },
+		.reg = { "csid_lite0" },
+		.interrupt = { "csid_lite0" },
+		.csid = {
+			.is_lite = true,
+			.parent_dev_ops = &vfe_parent_dev_ops,
+			.hw_ops = &csid_ops_gen3,
+			.formats = &csid_formats_gen2,
+		},
+	},
+};
+
+static const struct camss_subdev_resources vfe_res_eliza[] = {
+	{
+		.clock = { "gcc_axi_hf", "cpas_ahb", "cpas_fast_ahb",
+			   "camnoc_axi", "cpas_ife_lite", "vfe_lite_ahb", "vfe_lite" },
+		.clock_rate = { { 0 }, { 80000000 }, { 300000000 },
+				{ 300000000, 400000000 },
+				{ 0 }, { 0 }, { 400000000, 480000000 } },
+		.reg = { "vfe_lite0" },
+		.interrupt = { "vfe_lite0" },
+		.vfe = {
+			.is_lite = true,
+			.line_num = 4,
+			.hw_ops = &vfe_ops_gen3,
+			.formats_rdi = &vfe_formats_rdi_845,
+		},
+	},
+};
+
 static const struct camss_subdev_resources csiphy_res_sm8650[] = {
 	/* CSIPHY0 */
 	{
@@ -5739,7 +5855,22 @@ static const struct camss_resources x1e80100_resources = {
 	.vfe_num = ARRAY_SIZE(vfe_res_x1e80100),
 };
 
+static const struct camss_resources eliza_resources = {
+	.version = CAMSS_ELIZA,
+	.csiphy_res = csiphy_res_eliza,
+	.tpg_res = tpg_res_eliza,
+	.csid_res = csid_res_eliza,
+	.vfe_res = vfe_res_eliza,
+	.icc_res = icc_res_sm8550,
+	.icc_path_num = ARRAY_SIZE(icc_res_sm8550),
+	.csiphy_num = ARRAY_SIZE(csiphy_res_eliza),
+	.tpg_num = ARRAY_SIZE(tpg_res_eliza),
+	.csid_num = ARRAY_SIZE(csid_res_eliza),
+	.vfe_num = ARRAY_SIZE(vfe_res_eliza),
+};
+
 static const struct of_device_id camss_dt_match[] = {
+	{ .compatible = "qcom,eliza-camss", .data = &eliza_resources },
 	{ .compatible = "qcom,msm8916-camss", .data = &msm8916_resources },
 	{ .compatible = "qcom,msm8939-camss", .data = &msm8939_resources },
 	{ .compatible = "qcom,msm8953-camss", .data = &msm8953_resources },
