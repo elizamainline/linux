@@ -299,12 +299,47 @@
 	status = "okay";
 };
 
+&camss_port0 {
+	camss_ultrawide_ep: endpoint {
+		remote-endpoint = <&imx355_ep>;
+		bus-type = <4>;
+		clock-lanes = <7>;
+		data-lanes = <0 1 2 3>;
+	};
+};
+
 &cci0 {
 	status = "okay";
 };
 
 &cci0_i2c0 {
 	status = "okay";
+
+	cam_ultrawide: camera@1a {
+		compatible = "sony,imx355";
+		reg = <0x1a>;
+
+		clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK0_CLK>;
+		assigned-clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK0_CLK>;
+		assigned-clock-rates = <19200000>;
+
+		avdd-supply = <&cam_ldo7>;
+		dvdd-supply = <&cam_ldo2>;
+		dovdd-supply = <&cam_ldo4>;
+		reset-gpios = <&tlmm 123 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_ultrawide_default>;
+		orientation = <1>;
+		rotation = <90>;
+
+		port {
+			imx355_ep: endpoint {
+				remote-endpoint = <&camss_ultrawide_ep>;
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <360000000>;
+			};
+		};
+	};
 };
 
 &cci0_i2c1 {
@@ -800,6 +835,23 @@
 			       <111 2>,  /* WCN UART1 */
 			       <118 1>;  /* NFC Secure I/O */
 
+	cam_ultrawide_default: cam-ultrawide-default-state {
+		mclk-pins {
+			pins = "gpio65";
+			function = "cam_mclk";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		reset-pins {
+			pins = "gpio123";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+	};
+
 	wifi_sw_ctrl: wifi-sw-ctrl-state {
 		pins = "gpio81";
 		function = "wcn_sw_ctrl";
@@ -986,6 +1038,66 @@
 		function = "gpio";
 		bias-disable;
 		input-enable;
+	};
+};
+
+&i2c0 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	pmic@35 {
+		compatible = "sgmicro,sgm38120";
+		reg = <0x35>;
+		reset-gpios = <&pm8550vs_d_gpios 5 GPIO_ACTIVE_LOW>;
+		vin12-supply = <&vreg_s2b>;
+		vin34-supply = <&vreg_bob>;
+		vin5-supply = <&vreg_bob>;
+		vin6-supply = <&vreg_bob>;
+		vin7-supply = <&vreg_bob>;
+
+		regulators {
+			ldo1 {
+				regulator-name = "cam-ldo1";
+				regulator-min-microvolt = <528000>;
+				regulator-max-microvolt = <1504000>;
+			};
+
+			cam_ldo2: ldo2 {
+				regulator-name = "cam-ultrawide-dvdd";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			ldo3 {
+				regulator-name = "cam-ldo3";
+				regulator-min-microvolt = <1504000>;
+				regulator-max-microvolt = <3544000>;
+			};
+
+			cam_ldo4: ldo4 {
+				regulator-name = "cam-ultrawide-dovdd";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			ldo5 {
+				regulator-name = "cam-ldo5";
+				regulator-min-microvolt = <1504000>;
+				regulator-max-microvolt = <3544000>;
+			};
+
+			ldo6 {
+				regulator-name = "cam-ldo6";
+				regulator-min-microvolt = <1504000>;
+				regulator-max-microvolt = <3544000>;
+			};
+
+			cam_ldo7: ldo7 {
+				regulator-name = "cam-ultrawide-avdd";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+			};
+		};
 	};
 };
 
