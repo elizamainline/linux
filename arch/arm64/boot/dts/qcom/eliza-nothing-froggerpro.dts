@@ -318,6 +318,15 @@
 	};
 };
 
+&camss_port2 {
+	camss_tele_ep: endpoint {
+		remote-endpoint = <&s5kjn5_ep>;
+		bus-type = <4>;
+		clock-lanes = <7>;
+		data-lanes = <0 1 2 3>;
+	};
+};
+
 &camss_port3 {
 	camss_front_ep: endpoint {
 		remote-endpoint = <&s5kkd1_ep>;
@@ -371,6 +380,32 @@
 
 &cci1_i2c0 {
 	status = "okay";
+
+	cam_tele: camera@2d {
+		compatible = "samsung,s5kjn5";
+		reg = <0x2d>;
+
+		clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK2_CLK>;
+		assigned-clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK2_CLK>;
+		assigned-clock-rates = <19200000>;
+		vddio-supply = <&cam_ldo4>;
+		vddd-supply = <&cam_tele_dvdd>;
+		vddm-supply = <&cam_tele_dvdd>;
+		vdda-supply = <&cam_tele_avdd>;
+		reset-gpios = <&tlmm 125 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_tele_default>;
+		orientation = <1>;
+		rotation = <270>;
+
+		port {
+			s5kjn5_ep: endpoint {
+				remote-endpoint = <&camss_tele_ep>;
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <1248000000>;
+			};
+		};
+	};
 };
 
 &cci1_i2c1 {
@@ -913,6 +948,23 @@
 		};
 	};
 
+	cam_tele_default: cam-tele-default-state {
+		mclk-pins {
+			pins = "gpio67";
+			function = "cam_mclk";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		reset-pins {
+			pins = "gpio125";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+	};
+
 	wifi_sw_ctrl: wifi-sw-ctrl-state {
 		pins = "gpio81";
 		function = "wcn_sw_ctrl";
@@ -1133,10 +1185,10 @@
 		vin7-supply = <&vreg_bob>;
 
 		regulators {
-			ldo1 {
-				regulator-name = "cam-ldo1";
-				regulator-min-microvolt = <528000>;
-				regulator-max-microvolt = <1504000>;
+			cam_tele_dvdd: ldo1 {
+				regulator-name = "cam-tele-dvdd";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
 			};
 
 			cam_ldo2: ldo2 {
@@ -1145,10 +1197,10 @@
 				regulator-max-microvolt = <1200000>;
 			};
 
-			ldo3 {
-				regulator-name = "cam-ldo3";
-				regulator-min-microvolt = <1504000>;
-				regulator-max-microvolt = <3544000>;
+			cam_tele_avdd: ldo3 {
+				regulator-name = "cam-tele-avdd";
+				regulator-min-microvolt = <2200000>;
+				regulator-max-microvolt = <2200000>;
 			};
 
 			cam_ldo4: ldo4 {
