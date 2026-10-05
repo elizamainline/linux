@@ -2226,6 +2226,7 @@ struct s5kjn5 {
 	struct clk		*inclk;
 	struct gpio_desc	*reset_gpio;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(s5kjn5_supply_names)];
+	unsigned int num_supplies;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl	*link_freq;
 	struct v4l2_ctrl	*hblank;
@@ -2278,7 +2279,7 @@ static int s5kjn5_power_on(struct device *dev)
 	struct s5kjn5 *s5kjn5 = sd_to_s5kjn5(sd);
 	int ret;
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(s5kjn5_supply_names),
+	ret = regulator_bulk_enable(s5kjn5->num_supplies,
 				    s5kjn5->supplies);
 	if (ret) {
 		dev_err(dev, "failed to enable regulators: %d\n", ret);
@@ -2292,7 +2293,7 @@ static int s5kjn5_power_on(struct device *dev)
 	if (ret) {
 		dev_err(dev, "failed to enable clock: %d\n", ret);
 		gpiod_set_value_cansleep(s5kjn5->reset_gpio, 1);
-		regulator_bulk_disable(ARRAY_SIZE(s5kjn5_supply_names),
+		regulator_bulk_disable(s5kjn5->num_supplies,
 				       s5kjn5->supplies);
 		return ret;
 	}
@@ -2309,7 +2310,7 @@ static int s5kjn5_power_off(struct device *dev)
 
 	clk_disable_unprepare(s5kjn5->inclk);
 	gpiod_set_value_cansleep(s5kjn5->reset_gpio, 1);
-	regulator_bulk_disable(ARRAY_SIZE(s5kjn5_supply_names),
+	regulator_bulk_disable(s5kjn5->num_supplies,
 			       s5kjn5->supplies);
 
 	return 0;
@@ -2639,7 +2640,6 @@ static void s5kjn5_fill_format(const struct s5kjn5_mode *mode,
 }
 
 static int s5kjn5_set_fmt(struct v4l2_subdev *sd,
-			  const struct v4l2_subdev_client_info *ci,
 			  struct v4l2_subdev_state *state,
 			  struct v4l2_subdev_format *fmt)
 {
@@ -2655,7 +2655,6 @@ static int s5kjn5_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int s5kjn5_get_selection(struct v4l2_subdev *sd,
-				const struct v4l2_subdev_client_info *ci,
 				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_selection *sel)
 {
@@ -2742,14 +2741,32 @@ static int s5kjn5_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(s5kjn5->reset_gpio),
 				     "failed to get reset GPIO\n");
 
-	for (i = 0; i < ARRAY_SIZE(s5kjn5_supply_names); i++)
+	/* VDDIO12 is unused with 1.8 V I/O; AF power is module-dependent. */
+	s5kjn5->num_supplies = 4;
+	for (i = 0; i < s5kjn5->num_supplies; i++)
 		s5kjn5->supplies[i].supply = s5kjn5_supply_names[i];
 
-	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(s5kjn5_supply_names),
+	ret = devm_regulator_bulk_get(dev, s5kjn5->num_supplies,
 				      s5kjn5->supplies);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "failed to get regulators\n");
+
+	for (; i < ARRAY_SIZE(s5kjn5_supply_names); i++) {
+		struct regulator *supply;
+
+		supply = devm_regulator_get_optional(dev, s5kjn5_supply_names[i]);
+		if (IS_ERR(supply)) {
+			if (PTR_ERR(supply) == -ENODEV)
+				continue;
+			return dev_err_probe(dev, PTR_ERR(supply),
+					     "failed to get %s regulator\n",
+					     s5kjn5_supply_names[i]);
+		}
+
+		s5kjn5->supplies[s5kjn5->num_supplies].supply = s5kjn5_supply_names[i];
+		s5kjn5->supplies[s5kjn5->num_supplies++].consumer = supply;
+	}
 
 	s5kjn5->regmap = devm_cci_regmap_init_i2c(client, 16);
 	if (IS_ERR(s5kjn5->regmap))
