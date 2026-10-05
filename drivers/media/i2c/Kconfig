@@ -310,6 +310,16 @@ config VIDEO_IMX678
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx678.
 
+config VIDEO_IMX896
+	tristate "Sony IMX896 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a V4L2 sensor driver for the Sony IMX896 50 megapixel
+	  image sensor, using three-trio MIPI C-PHY and a 19.2 MHz clock.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx896.
+
 config VIDEO_MAX9271_LIB
 	tristate
 
