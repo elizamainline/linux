@@ -236,6 +236,46 @@ static const struct csiphy_reg cphy_2gsps_regs[] = {
 	{ 0x0a14, 0x00, 0, false },
 };
 
+/* Stock short-channel profile for 0.9 to 1.0 Gsymbols/s. */
+static const struct csiphy_reg cphy_1gsps_regs[] = {
+	{ 0x0268, 0xf1, 0, false },
+	{ 0x0294, 0x01, 0, false },
+	{ 0x0278, 0x58, 0, false },
+	{ 0x0288, 0x20, 0, false },
+	{ 0x026c, 0x05, 0, false },
+	{ 0x028c, 0x30, 0, false },
+	{ 0x0270, 0x00, 0, false },
+	{ 0x0274, 0x03, 0, false },
+	{ 0x0668, 0xf1, 0, false },
+	{ 0x0694, 0x01, 0, false },
+	{ 0x0678, 0x58, 0, false },
+	{ 0x0688, 0x20, 0, false },
+	{ 0x066c, 0x05, 0, false },
+	{ 0x068c, 0x30, 0, false },
+	{ 0x0670, 0x00, 0, false },
+	{ 0x0674, 0x03, 0, false },
+	{ 0x0a68, 0xf1, 0, false },
+	{ 0x0a94, 0x01, 0, false },
+	{ 0x0a78, 0x58, 0, false },
+	{ 0x0a88, 0x20, 0, false },
+	{ 0x0a6c, 0x05, 0, false },
+	{ 0x0a8c, 0x30, 0, false },
+	{ 0x0a70, 0x00, 0, false },
+	{ 0x0a74, 0x03, 10, false },
+	{ 0x020c, 0x3c, 0, false },
+	{ 0x0208, 0x00, 0, false },
+	{ 0x0210, 0x00, 0, false },
+	{ 0x0214, 0x09, 0, false },
+	{ 0x060c, 0x3c, 0, false },
+	{ 0x0608, 0x00, 0, false },
+	{ 0x0610, 0x00, 0, false },
+	{ 0x0614, 0x09, 0, false },
+	{ 0x0a0c, 0x3c, 0, false },
+	{ 0x0a08, 0x00, 0, false },
+	{ 0x0a10, 0x00, 0, false },
+	{ 0x0a14, 0x09, 0, false },
+};
+
 static u8 csiphy_get_lane_mask(struct csiphy_lanes_cfg *cfg)
 {
 	u8 mask = cfg->cphy ? 0 : BIT(7);
@@ -306,6 +346,12 @@ static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 	u32 settle = 0;
 	unsigned int i;
 
+	/* Reapply 3-phase mode after the pipeline power-up/reset sequence. */
+	if (cfg->csi2->lane_cfg.cphy) {
+		writel(0x0e, csiphy->base + CSIPHY_RESET);
+		fsleep(3048);
+	}
+
 	if (link_freq > 0 && csiphy->timer_clk_rate) {
 		u64 ui = div64_u64(1000000000000ULL, 2 * link_freq);
 
@@ -322,8 +368,12 @@ static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 
 	if (cfg->csi2->lane_cfg.cphy) {
 		/* Apply rate settings before the common C-PHY mission table. */
-		csiphy_write_regs(csiphy, cphy_2gsps_regs,
-				  ARRAY_SIZE(cphy_2gsps_regs), 0);
+		if (link_freq <= 500000000)
+			csiphy_write_regs(csiphy, cphy_1gsps_regs,
+					  ARRAY_SIZE(cphy_1gsps_regs), 0);
+		else
+			csiphy_write_regs(csiphy, cphy_2gsps_regs,
+					  ARRAY_SIZE(cphy_2gsps_regs), 0);
 		csiphy_write_regs(csiphy, cphy_regs, ARRAY_SIZE(cphy_regs), 0);
 	} else {
 		csiphy_write_regs(csiphy, dphy_regs, ARRAY_SIZE(dphy_regs), settle);
