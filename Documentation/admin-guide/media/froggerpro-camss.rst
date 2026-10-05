@@ -50,6 +50,44 @@ additional RUP/AUP commands, frame/IRQ subsampling, a software CSID reset,
 secondary VC/DT matching and VFE routing/clock overrides did not produce
 frames. These experimental settings are not part of the driver change.
 
+Follow-up investigation on 2026-10-05
+------------------------------------
+
+Kernel ``7.3.0-rc6`` still stalls for both IMX355 color bars and TPG0:
+the capture files remain empty, receiver packets and SOF/EOF timestamps
+advance, and VFE consumed addresses and completion status remain zero.
+Receiver MISR enable, disabling the receiver's RUP/AUP latch, one-frame
+batch configuration and VFE common configuration ``0x1`` did not recover
+the running TPG capture. Their original configuration values were restored.
+
+The matching downstream kernel configures the RDI path, submits RUP/AUP,
+enables the receiver and resumes the path. Mainline queues VFE addresses
+and submits RUP/AUP before configuring CSID. The Eliza stream-start change
+adds a path-only RUP after RDI configuration and before receiver setup.
+It deliberately leaves AUP clear to avoid submitting the initial buffer
+addresses a second time. This corrects the configuration-update ordering;
+it has not yet been tested at stream start on the phone and is not a
+confirmed remedy for the DMA stall. A path-only RUP issued after the stream
+had already stalled did not recover it.
+
+CPAS identifies Titan 970 (camera version ``0x00090700``) and CPAS 1.1
+(``0x10010000``). During capture, its RT QCHANNEL control/status are
+``0x1``/``0x4`` and its NRT control/status are ``0x1``/``0x0``. Downstream
+power-on waits for status bit 0 (QACCEPTN), which is clear in both samples.
+This is an additional interconnect bring-up lead, not proof that it causes
+the stall. Temporarily enabling the downstream CPAS NRT/SF clocks and
+applying its documented GCC camera AXI sleep-staging sequence did not
+change these status values or enable DMA. Those settings were restored
+and are not included in the driver change.
+
+Validate the stream-start change with matching CAMSS modules, first using
+TPG0 and then sensor color bars, retaining powered register snapshots for
+both. Repeat each stream start/stop. Ten TPG frames should dequeue and,
+with the negotiated 640-byte stride, total 3,072,000 bytes. Sensor capture
+must also dequeue buffers before optical capture or GNOME Camera can
+establish success. Neither a completed build nor a successful stream-on
+ioctl validates frame delivery.
+
 Hardware information
 --------------------
 
@@ -167,6 +205,12 @@ register window read-only and does not clear IRQs or change configuration.
 It refuses access when CAMSS is suspended or either required clock is
 disabled. Compare receiver counters and RDI timestamps between samples,
 then inspect VFE bus errors, completion status and consumed addresses.
+The helper also reads CPAS QCHANNEL control/status. Downstream expects
+QACCEPTN (status bit 0) during power-on; interpret this alongside the clock
+and frame-delivery evidence. Debug counters depend on their enable/select
+registers; zero values with diagnostics disabled do not prove no activity.
+The Lite 880 table used by Lite 970 places RDI1 and RDI2 halt status at
+``0x66c`` and ``0x76c``, unlike the ``0x568``/``0x868`` offsets for RDI0/3.
 The packet-header fields are meaningful only if a separate diagnostic
 has enabled packet capture; this script does not enable it.
 

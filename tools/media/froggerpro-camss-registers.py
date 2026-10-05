@@ -11,11 +11,19 @@ import time
 
 
 BASE = 0x0AD6D000
+CPAS_BASE = 0x0AC04000
 DEVICE = Path("/sys/bus/platform/devices/ad6d000.isp")
 CLOCKS = ("cam_cc_ife_lite_clk", "cam_cc_ife_lite_csid_clk")
+# Lite970 uses the Lite880 path table, whose halt offsets are not uniform.
+HALT_STATUS = (0x568, 0x66C, 0x76C, 0x868)
+CPAS_REGISTERS = {
+    0x000: "CAMERA_VERSION", 0x004: "CPAS_VERSION",
+    0x0EC: "RT_QCHANNEL_CTRL", 0x0F0: "RT_QCHANNEL_STATUS",
+    0x0F4: "NRT_QCHANNEL_CTRL", 0x0F8: "NRT_QCHANNEL_STATUS",
+}
 REGISTERS = {
     "CSID": {
-        0x000: "HW_VERSION", 0x018: "RUP_AUP_CMD",
+        0x000: "HW_VERSION", 0x004: "CFG0", 0x018: "RUP_AUP_CMD",
         0x07C: "TOP_IRQ_STATUS", 0x080: "TOP_IRQ_MASK",
         0x08C: "BUF_DONE_IRQ_STATUS", 0x090: "BUF_DONE_IRQ_MASK",
         0x09C: "RX_IRQ_STATUS", 0x0A0: "RX_IRQ_MASK",
@@ -27,6 +35,8 @@ REGISTERS = {
     "VFE": {
         0x1000: "HW_VERSION", 0x101C: "TOP_IRQ_STATUS0",
         0x1020: "TOP_IRQ_STATUS1", 0x103C: "CORE_CFG0",
+        0x1040: "DIAG_CONFIG", 0x104C: "RDI_FRAME_COUNT",
+        0x1074: "TOP_DEBUG_CFG",
         0x1200: "BUS_VERSION", 0x1208: "BUS_CGC_OVERRIDE",
         0x1218: "BUS_IRQ_MASK", 0x1228: "BUS_IRQ_STATUS",
         0x1264: "BUS_CCIF_VIOLATION", 0x1268: "BUS_OVERFLOW",
@@ -47,28 +57,38 @@ def require_power():
             raise RuntimeError(f"{clock} is disabled; start a capture first")
 
 
-def snapshot(regs, sample):
+def snapshot(regs, sample, cpas=None):
     def read(offset):
         return struct.unpack_from("<I", regs, offset)[0]
 
     print(f"Sample {sample}")
+    if cpas is not None:
+        for offset, name in CPAS_REGISTERS.items():
+            value = struct.unpack_from("<I", cpas, offset)[0]
+            print(f"CPAS {offset:04x} {name:26s} {value:08x}")
     for block, registers in REGISTERS.items():
         for offset, name in registers.items():
             print(f"{block:4s} {offset:04x} {name:26s} {read(offset):08x}")
     for rdi in range(4):
         for offset, name in {
             0xEC: "IRQ_STATUS", 0xF0: "IRQ_MASK", 0x500: "CFG0",
-            0x504: "CTRL", 0x510: "CFG1", 0x528: "FRAME_CFG",
-            0x538: "CAMIF_DEBUG1", 0x568: "HALT_STATUS",
+            0x504: "CTRL", 0x50C: "MULTI_VCDT_CFG0", 0x510: "CFG1",
+            0x520: "BYTE_COUNT_PING", 0x524: "BYTE_COUNT_PONG",
+            0x528: "FRAME_CFG", 0x538: "CAMIF_DEBUG1",
+            0x53C: "CAMIF_DEBUG0",
+            0x540: "FRAME_DROP_PATTERN", 0x544: "FRAME_DROP_PERIOD",
             0x594: "SOF_TIMESTAMP_LOW", 0x5A4: "EOF_TIMESTAMP_LOW",
         }.items():
             # IRQ registers have a smaller stride than the RDI configuration.
             address = offset + rdi * (0x10 if offset < 0x500 else 0x100)
             print(f"RDI{rdi} {address:04x} {name:26s} {read(address):08x}")
+        address = HALT_STATUS[rdi]
+        print(f"RDI{rdi} {address:04x} {'HALT_STATUS':26s} {read(address):08x}")
         for offset, name in {
             0x1700: "CFG", 0x1704: "IMAGE_ADDR", 0x1708: "FRAME_INCR",
             0x170C: "IMAGE_CFG0", 0x1714: "STRIDE", 0x1718: "PACKER_CFG",
-            0x1770: "ADDR_CFG", 0x1780: "DEBUG_STATUS0",
+            0x1770: "ADDR_CFG", 0x177C: "DEBUG_STATUS_CFG",
+            0x1780: "DEBUG_STATUS0",
             0x1784: "DEBUG_STATUS1", 0x1790: "CONSUMED_ADDR0",
             0x1794: "CONSUMED_ADDR1",
         }.items():
@@ -82,11 +102,13 @@ def main():
     fd = os.open("/dev/mem", os.O_RDONLY | os.O_SYNC)
     try:
         with mmap.mmap(fd, 0x3000, flags=mmap.MAP_SHARED,
-                       prot=mmap.PROT_READ, offset=BASE) as regs:
-            snapshot(regs, 0)
+                       prot=mmap.PROT_READ, offset=BASE) as regs, \
+                mmap.mmap(fd, 0x1000, flags=mmap.MAP_SHARED,
+                          prot=mmap.PROT_READ, offset=CPAS_BASE) as cpas:
+            snapshot(regs, 0, cpas)
             time.sleep(0.25)
             require_power()
-            snapshot(regs, 1)
+            snapshot(regs, 1, cpas)
     finally:
         os.close(fd)
 
