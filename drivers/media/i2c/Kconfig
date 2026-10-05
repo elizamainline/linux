@@ -826,6 +826,13 @@ config VIDEO_S5KJN1
 	  To compile this driver as a module, choose M here: the
 	  module will be called s5kjn1.
 
+config VIDEO_S5KKD1
+	tristate "Samsung S5KKD1 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a V4L2 sensor driver for the Samsung S5KKD1 camera.
+	  It supports 3280x2464 RAW10 over a four-lane CSI-2 D-PHY interface.
+
 config VIDEO_T4KA3
 	tristate "Toshiba T4KA3 sensor support"
 	depends on ACPI || COMPILE_TEST
