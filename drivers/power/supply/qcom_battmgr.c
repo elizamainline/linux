@@ -105,6 +105,8 @@ enum qcom_battmgr_variant {
 #define CHARGE_CTRL_END_THR_MAX		100
 #define CHARGE_CTRL_DELTA_SOC		5
 
+#define BATTMGR_OEM_LOG_BUFFER		0x50
+
 struct qcom_battmgr_enable_request {
 	struct pmic_glink_hdr hdr;
 	__le32 battery_id;
@@ -233,6 +235,7 @@ struct qcom_battmgr_message {
 		} status;
 		__le32 time;
 		__le32 notification;
+		char log[BATTMGR_STRING_LEN];
 	};
 };
 
@@ -1569,6 +1572,21 @@ out_complete:
 	complete(&battmgr->ack);
 }
 
+/* Unsolicited OEM diagnostics must not complete a pending request. */
+static void qcom_battmgr_oem_log(struct qcom_battmgr *battmgr,
+				 const struct qcom_battmgr_message *msg, size_t len)
+{
+	size_t payload_len = len - sizeof(struct pmic_glink_hdr);
+
+	if (payload_len != sizeof(msg->log)) {
+		dev_warn_ratelimited(battmgr->dev, "ignoring OEM log with invalid length: %zu\n",
+				     payload_len);
+		return;
+	}
+
+	dev_dbg(battmgr->dev, "ADSP charger log: %.*s\n", (int)sizeof(msg->log), msg->log);
+}
+
 static void qcom_battmgr_callback(const void *data, size_t len, void *priv)
 {
 	const struct pmic_glink_hdr *hdr = data;
@@ -1577,6 +1595,8 @@ static void qcom_battmgr_callback(const void *data, size_t len, void *priv)
 
 	if (opcode == BATTMGR_NOTIFICATION)
 		qcom_battmgr_notification(battmgr, data, len);
+	else if (opcode == BATTMGR_OEM_LOG_BUFFER)
+		qcom_battmgr_oem_log(battmgr, data, len);
 	else if (battmgr->variant == QCOM_BATTMGR_SC8280XP ||
 		 battmgr->variant == QCOM_BATTMGR_X1E80100)
 		qcom_battmgr_sc8280xp_callback(battmgr, data, len);
