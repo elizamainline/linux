@@ -77,6 +77,7 @@ static const char * const s5kjn5_supply_names[] = {
 struct s5kjn5_mode {
 	u32 width;
 	u32 height;
+	u32 code;
 	u32 hts;
 	u32 vts_min;
 	u32 vts_def;
@@ -3488,6 +3489,7 @@ static const struct s5kjn5_mode s5kjn5_modes[] = {
 	{
 		.width		= 4096,
 		.height		= 3072,
+		.code		= MEDIA_BUS_FMT_SGBRG10_1X10,
 		.hts		= 5800,
 		.vts_min	= 5296,
 		.vts_def	= 5296,
@@ -3499,6 +3501,7 @@ static const struct s5kjn5_mode s5kjn5_modes[] = {
 	{
 		.width		= 4096,
 		.height		= 3072,
+		.code		= MEDIA_BUS_FMT_SGRBG10_1X10,
 		.hts		= 4844,
 		.vts_min	= 3169,
 		/* Default to 30 fps; the stock mode table programs 60 fps. */
@@ -3913,7 +3916,7 @@ static int s5kjn5_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index != 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_SGBRG10_1X10;
+	code->code = sd_to_s5kjn5(sd)->mode->code;
 
 	return 0;
 }
@@ -3922,7 +3925,7 @@ static int s5kjn5_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->code != MEDIA_BUS_FMT_SGBRG10_1X10 ||
+	if (fse->code != sd_to_s5kjn5(sd)->mode->code ||
 	    fse->index != 0)
 		return -EINVAL;
 
@@ -3939,7 +3942,7 @@ static void s5kjn5_fill_format(const struct s5kjn5_mode *mode,
 {
 	fmt->width	= mode->width;
 	fmt->height	= mode->height;
-	fmt->code	= MEDIA_BUS_FMT_SGBRG10_1X10;
+	fmt->code	= mode->code;
 	fmt->field	= V4L2_FIELD_NONE;
 	fmt->colorspace	= V4L2_COLORSPACE_RAW;
 	fmt->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
