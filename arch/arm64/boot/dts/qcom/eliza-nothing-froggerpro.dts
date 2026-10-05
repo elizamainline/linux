@@ -321,9 +321,8 @@
 &camss_port2 {
 	camss_tele_ep: endpoint {
 		remote-endpoint = <&s5kjn5_ep>;
-		bus-type = <4>;
-		clock-lanes = <7>;
-		data-lanes = <0 1 2 3>;
+		bus-type = <1>;
+		data-lanes = <0 1 2>;
 	};
 };
 
@@ -401,8 +400,9 @@
 		port {
 			s5kjn5_ep: endpoint {
 				remote-endpoint = <&camss_tele_ep>;
-				data-lanes = <1 2 3 4>;
-				link-frequencies = /bits/ 64 <1248000000>;
+				bus-type = <1>;
+				data-lanes = <1 2 3>;
+				link-frequencies = /bits/ 64 <998400000>;
 			};
 		};
 	};
