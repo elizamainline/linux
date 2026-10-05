@@ -12,7 +12,9 @@ and the Sony IMX355 ultrawide sensor using the existing mainline driver.
 The S5KKD1 front sensor and its AW37004 digital supply have initial drivers
 and board wiring. Front-camera capture works; image tuning remains to be done.
 The S5KJN5 telephoto sensor probes; its initial D-PHY preview was black.
-The board now selects its stock C-PHY mode, pending capture validation.
+The board selects its stock C-PHY mode and short-channel PHY profile.
+The user confirmed a working telephoto camera after applying these changes
+and rebooting, including the sensor readout correction for the mirrored image.
 
 The first device boot reached CAMSS entity registration and configured the
 SGM38120 camera PMIC. IMX355's initial chip-ID read timed out on CCI0 master
@@ -576,7 +578,7 @@ black preview. Stock telephoto metadata specifies three C-PHY trios
 ends of the link. The imported four-lane D-PHY mode remains available for
 modules wired for that interface.
 
-The C-PHY mode exposes 4096 by 3072 RAW10 with GBRG output, exposure,
+The C-PHY mode exposes 4096 by 3072 RAW10 with BGGR output, exposure,
 analogue gain, digital gain, vertical blanking and test patterns. Its
 ``V4L2_CID_LINK_FREQ`` is 998.4 MHz, half the 1.9968 Gsymbols/s C-PHY symbol
 rate, following the V4L2 CSI-2 convention. The VT pixel clock is 921.6 MHz;
@@ -584,9 +586,10 @@ line length is 4844 and the default frame length is 6338, giving about
 30.02 fps. The stock frame length 3169 is the minimum, allowing about
 60.04 fps by reducing vertical blanking to 97. The default vertical blanking
 is 3266. The transport frequency stays fixed when frame timing changes.
-Bayer order, mounting rotation, measured frame rate and image content still
-need device validation. The initial rotation of 270 follows the corrected
-rear-camera metadata used for IMX355.
+Native color-bar samples establish GRBG before the mirror correction. The
+sensor vertical flip changes this to BGGR. The rotation of 270 follows the
+corrected rear-camera metadata used for IMX355. The user confirmed that the
+camera works correctly after applying the readout correction and rebooting.
 
 CAMSS carries the bus type through CSIPHY and CSID, accounts for C-PHY's
 16/7 coding ratio when deriving a missing link frequency, and sets the Lite
@@ -594,7 +597,7 @@ CSID PHY-type bit at bit 24. The v2.2.1 PHY uses the stock reset-exit value
 ``0x0e`` with its 3048 us delay and enables trios with mask ``0x2a``. Its
 rate-dependent settings precede the common C-PHY mission settings, matching
 the downstream driver. This initial profile supports only three trios mapped
-0, 1, 2 on Eliza, standard-channel settings and symbol rates above 1.7 and up
+0, 1, 2 on Eliza, short-channel settings and symbol rates above 1.7 and up
 to 2.0 Gsymbols/s. It uses the table's settle count ``0x27``; other rates,
 channel types and adaptive settle timing need additional implementation.
 Existing D-PHY register tables and test-generator routing are preserved.
@@ -649,10 +652,15 @@ PHY settings come from the locally supplied Qualcomm camera-kernel source::
 
     drivers/cam_sensor_module/cam_csiphy/include/cam_csiphy_2_2_1_hwreg.h
 
-The 72 common C-PHY writes and 36 standard-channel 2.0 Gsymbols/s profile
+The 72 common C-PHY writes and 36 short-channel 2.0 Gsymbols/s profile
 writes were compared against this header. Reset, lane-enable and programming
-order follow ``cam_csiphy_core.c``. These checks establish register provenance;
-they do not establish successful CSI reception on this phone.
+order follow ``cam_csiphy_core.c``. The standard-channel profile produced
+sparse packets and CRC errors on the phone. The short-channel profile receives
+complete RAW10 color bars without CRC or ECC errors. During earlier diagnosis,
+some starts returned one empty buffer and stalled with RX stream-underflow
+bit 23. Startup ordering and interrupt recovery experiments are not included
+in the committed changes. The subsequent reboot test confirmed a working
+camera.
 
 Incremental build and next device test
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -693,7 +701,7 @@ then collect sensor bars before optical frames::
     sudo sh froggerpro-capture.sh s5kjn5-bars
     sudo sh froggerpro-capture.sh s5kjn5
 
-The helper requests ten 4096 by 3072 packed GBRG RAW10 frames (``pGAA``)
+The helper requests ten 4096 by 3072 packed BGGR RAW10 frames (``pBAA``)
 through RDI0 and saves the negotiated format, topology, IRQ counts and dmesg.
 At a 5120-byte stride, ten frames occupy 157,286,400 bytes. Confirm the
 negotiated stride rather than assuming this total. Repeat starts, inspect
@@ -701,3 +709,31 @@ color-bar content and record CSI CRC/ECC counters. Neither successful builds,
 probe nor stream-on alone establishes working telephoto capture. Clear the
 sensor test pattern before trying a preview; libcamera gain conversion and
 sensor-specific image tuning may also need follow-up.
+
+Telephoto mirror correction
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After rebooting with C-PHY support, the user confirmed that the camera works
+but both preview and saved photos exchange left and right. The telephoto node
+correctly reports a rear-facing camera (``orientation = <1>``) and a 270-degree
+mounting rotation. The orientation property identifies Front/Back/External;
+it does not describe an optical reflection. Keep this metadata unchanged.
+
+The FroggerPro C-PHY profile now sets the sensor's 8-bit orientation register
+``0x0101`` to ``0x02`` after the stock mode sequence and before streaming.
+At a 270-degree mounting rotation, this sensor vertical flip corrects a
+horizontal mirror in the displayed image. It changes native GRBG to BGGR,
+so the driver and capture helper advertise the matching Bayer order. The
+imported D-PHY profile retains its original GBRG output and register tables.
+The stock C-PHY tables also remain unchanged; the readout correction is a
+separate register write after mode setup. Only the sensor module needs to be
+rebuilt and replaced for this correction.
+
+On 2026-10-05, after applying the readout correction and rebooting, the user
+confirmed that the camera works correctly. The sensor module built
+incrementally with ``LLVM=1 ARCH=arm64 -j24 W=1`` in the existing output
+directory; no full kernel rebuild was performed for this correction.
+
+For future regression tests, check an asymmetric scene or readable text in
+both the preview and a saved photo. Confirm that left and right match the
+scene and that colors remain correct.
