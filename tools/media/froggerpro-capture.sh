@@ -6,12 +6,12 @@ set -eu
 
 mode=${1:-imx355-bars}
 if [ "$#" -gt 2 ]; then
-	echo "Usage: $0 [imx355-bars|imx355|tpg] [output-directory]" >&2
+	echo "Usage: $0 [imx355-bars|imx355|s5kkd1-bars|s5kkd1|tpg] [output-directory]" >&2
 	exit 2
 fi
 case "$mode" in
-	imx355|imx355-bars|tpg) ;;
-	*) echo "Usage: $0 [imx355-bars|imx355|tpg] [output-directory]" >&2; exit 2 ;;
+	imx355|imx355-bars|s5kkd1|s5kkd1-bars|tpg) ;;
+	*) echo "Usage: $0 [imx355-bars|imx355|s5kkd1-bars|s5kkd1|tpg] [output-directory]" >&2; exit 2 ;;
 esac
 
 for tool in media-ctl v4l2-ctl timeout; do
@@ -64,7 +64,7 @@ if [ -z "$media_device" ]; then
 	done
 fi
 if [ -z "$media_device" ]; then
-	echo 'No CAMSS media device found. Check CAMSS/IMX355 probe and loaded modules.'
+	echo 'No CAMSS media device found. Check CAMSS/sensor probe and loaded modules.'
 	exit 1
 fi
 
@@ -82,10 +82,18 @@ if [ "$mode" = tpg ]; then
 	width=640
 	height=480
 else
-	source_entity=$(sed -n 's/.*entity [0-9]*: \(imx355 [^ ]*\) (.*/\1/p' \
+	sensor_name=imx355
+	phy_entity=msm_csiphy0
+	case "$mode" in
+		s5kkd1|s5kkd1-bars)
+			sensor_name=s5kkd1
+			phy_entity=msm_csiphy3
+			;;
+	esac
+	source_entity=$(sed -n "s/.*entity [0-9]*: \($sensor_name [^ ]*\) (.*/\1/p" \
 		"$result_dir/topology-before.txt")
 	if [ -z "$source_entity" ]; then
-		echo 'IMX355 is absent from the media topology. Check sensor probe.'
+		echo "$sensor_name is absent from the media topology. Check sensor probe."
 		exit 1
 	fi
 	source_device=$(media-ctl -d "$media_device" -e "$source_entity")
@@ -102,16 +110,20 @@ if [ "$mode" = tpg ]; then
 	run media-ctl -d "$media_device" -l '"msm_tpg0":0 -> "msm_csid0":0 [1]'
 	run v4l2-ctl -d "$source_device" --set-ctrl=test_pattern=9
 else
-	run media-ctl -d "$media_device" -l '"msm_csiphy0":1 -> "msm_csid0":0 [1]'
+	run media-ctl -d "$media_device" -l "\"$phy_entity\":1 -> \"msm_csid0\":0 [1]"
 	pattern=0
-	[ "$mode" != imx355-bars ] || pattern=2
-	run v4l2-ctl -d "$source_device" \
-		--set-ctrl="horizontal_flip=0,vertical_flip=0,test_pattern=$pattern"
+	case "$mode" in
+		*-bars) pattern=2 ;;
+	esac
+	if [ "$sensor_name" = imx355 ]; then
+		run v4l2-ctl -d "$source_device" --set-ctrl=horizontal_flip=0,vertical_flip=0
+	fi
+	run v4l2-ctl -d "$source_device" --set-ctrl="test_pattern=$pattern"
 fi
 run media-ctl -d "$media_device" -l '"msm_csid0":1 -> "msm_vfe0_rdi0":0 [1]'
 run media-ctl -d "$media_device" -V "\"$source_entity\":0 [fmt:$bus_code/$size]"
 if [ "$mode" != tpg ]; then
-	run media-ctl -d "$media_device" -V "\"msm_csiphy0\":0 [fmt:$bus_code/$size]"
+	run media-ctl -d "$media_device" -V "\"$phy_entity\":0 [fmt:$bus_code/$size]"
 fi
 for entity in msm_csid0 msm_vfe0_rdi0; do
 	for pad in 0 1; do

@@ -8,6 +8,8 @@ with four raw RDI outputs, four CSIPHY v2.2.1 receivers in D-PHY mode,
 two TPG v1.4 generators, and two CCI controllers with four I2C buses.
 The FroggerPro device tree enables these blocks, the CSI analog supplies
 and the Sony IMX355 ultrawide sensor using the existing mainline driver.
+The S5KKD1 front sensor and its AW37004 digital supply now have initial
+drivers and board wiring; front-camera detection and capture need a device test.
 
 The first device boot reached CAMSS entity registration and configured the
 SGM38120 camera PMIC. IMX355's initial chip-ID read timed out on CCI0 master
@@ -16,7 +18,7 @@ adapter nodes to their controller nodes so the platform probe selects them.
 The next boot log no longer reports the CCI timeout or IMX355 probe failure.
 IMX355 now probes and sends valid RAW10 packets through CSIPHY0. Initial raw
 captures stalled before a buffer completed; enabling the missing CAMNOC QDSS
-XO clock restored capture as described below. The other physical sensors, C-PHY,
+XO clock restored capture as described below. The rear main and telephoto sensors, C-PHY,
 full TFE processing and ISP image processing are outside the initial
 support. The test generators can exercise CSID and VFE without a sensor;
 they do not exercise the external PHYs or CCI buses.
@@ -153,8 +155,8 @@ ID ``0x1c00``. CCI buses use GPIO pairs 70/71, 72/73, 74/75 and 76/77.
 Build and boot
 --------------
 
-``eliza_defconfig`` enables CAMCC built in and CAMSS, CCI, IMX355 and the
-SGM38120 camera PMIC as modules.
+``eliza_defconfig`` enables CAMCC built in and CAMSS, CCI, IMX355, S5KKD1,
+SGM38120 and AW37004 as modules.
 The QDSS XO branch already exists in CAMCC, so the clock fix needs only a new
 CAMSS module and board DTB, not a rebuilt kernel image.
 The tested phone boots an Android header-v2 image containing the DTB. Repack
@@ -379,3 +381,137 @@ PHY as well as CSID/VFE. After that succeeds, set ``test_pattern=0`` for
 optical capture. Inspect the returned pixel format and stride: ``pRAA``
 is packed RGGB RAW10, rather than 16-bit unpacked pixels. Save kernel logs
 and IRQ counters for both successful and failed stream start/stop cycles.
+
+S5KKD1 front camera
+-------------------
+
+Initial support added on 2026-10-05 uses the stock 3280 by 2464, approximately
+30 fps, four-lane D-PHY RAW10 mode. It exposes RGGB Bayer output, exposure,
+analogue gain (1/32 units, 1x through 16x), fixed unity digital gain (256),
+vertical blanking and the four stock test-pattern settings. Orientation is
+Front and rotation is 270 degrees, from the stock front-camera slot. Full
+resolution, HDR and additional frame rates are not exposed by this driver.
+Neither front sensor detection nor captured images have been validated yet.
+
+===================  ===============================================
+Resource             Assignment
+===================  ===============================================
+Control bus          CCI1, master 1, GPIO76/77
+I2C address          0x7a stock 8-bit address, 0x3d in Linux
+Identity             0x4841 at 16-bit register 0x0000
+CSI receiver         CSIPHY3, four D-PHY data lanes
+Master clock         CAM BIST MCLK3, GPIO68, 19.2 MHz
+Reset                GPIO126, active low
+Digital power        AW37004 LDO1, 1.05 V
+Interface power      SGM38120 LDO4, 1.8 V, shared with IMX355
+Analog power         Fixed 2.8 V LDO, PM8550VS-D GPIO6 enable
+AW37004              QUP I2C0 at 0x28; GPIO54 EN held low
+AW37004 inputs       S2B for digital LDOs; BOB for analog LDOs and bias
+===================  ===============================================
+
+The AW37004 driver keeps VIN2 powered for bias and I2C access, even when
+only a digital output is used. EN remains low for individual I2C control;
+raising it enables all four outputs at their default voltages. Digital
+selectors are 600 mV plus 6 mV per step (1.05 V uses selector 75), and
+analog selectors are 1.2 V plus 12.5 mV per step. All 256 selectors are
+represented. No unused output is explicitly enabled by the driver.
+The register map and EN behavior were checked against the Awinic AW37004
+V1.7 datasheet and the matching LineageOS regulator source. The
+`manufacturer product page <https://www.awinic.com/en/productDetail/AW37004DNR>`_
+provides the device documentation.
+
+The wiring is from the Kera QRD overlay in the LineageOS FroggerPro
+``dtbo.img`` (entry 49, and the equivalent UFS3 entry 46). The front slot
+is ``qcom,cam-sensor1`` under CCI1, with ``cci-master = <1>`` and
+``csiphy-sd-index = <3>``. Its core rail is AW_LDO1, not an SGM38120 output.
+The fixed analog regulator's GPIO6 belongs to PM8550VS-D, as recorded in
+the overlay's fixups.
+
+Register provenance and timing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The register data comes from the locally supplied LineageOS file::
+
+    vendor/nothing/FroggerPro/proprietary/vendor/lib64/camera/
+      com.qti.sensormodule.FroggerPro_qtech_s5kkd1_front.bin
+
+Its SHA256 is::
+
+    d41f929486f62ffa46201c42ffdb8cb080afa754fdd5d00b0269e9d684d28fd9
+
+The parameter directory at file offset ``0x18c`` contains 16-byte entries
+(ID, payload offset, length, type). Payload offsets are relative to the
+sensor data at ``0x19414``. Entry 5009 contains 258 initialization writes;
+the driver splits it after the first four writes to preserve the 8000 us
+delay after ``0x6010 = 1``. The selected resolution is entry 35's second
+mode, whose 234 writes are referenced by entry 1281. The 492 register
+addresses, values and widths in the driver were compared against these
+entries. Page-select writes to ``0xfcfc`` retain their original order;
+mode programming ends on page ``0x4000`` before controls and stream-on.
+
+Stock timing programs line length 3968 and frame length 4728. The VT PLL
+registers imply 563.2 MHz at the 19.2 MHz board clock, yielding about
+30.02 fps; this is the pixel-rate control used with blanking and exposure.
+The stock mode's output pixel clock is 510.96 MHz, which gives a nominal
+638.7 MHz CSI link clock at ten bits per pixel over four DDR lanes.
+These two clocks serve different purposes. Confirm receiver packet timing,
+CRC/ECC counters and measured frame rate on the phone before extending
+mode support or treating the link rate as hardware-verified.
+
+Power-up follows the stock sequence: assert reset, enable I/O and wait
+1 ms, enable digital and wait 2 ms, enable analog and wait 1 ms,
+deassert reset and wait 3 ms, then enable MCLK and wait 12 ms. Streaming
+replays the software reset and initialization after each power cycle.
+Stopping or a failed start synchronously powers the sensor down.
+
+Incremental build and first device test
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Keep the existing build configuration, enable the two new modules, and
+build only the new objects and board DTB::
+
+    scripts/config --file /tmp/froggerpro-build/.config \
+        --module VIDEO_S5KKD1 --module REGULATOR_AW37004
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 olddefconfig
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 W=1 \
+        drivers/media/i2c/s5kkd1.o drivers/regulator/aw37004.o \
+        qcom/eliza-nothing-froggerpro.dtb
+
+The new ``s5kkd1.ko`` and ``aw37004.ko`` have also been built using the
+existing output directory, with ``KERNELRELEASE=7.3.0-rc6`` to match the
+supplied boot log. The media-core and regmap-I2C module targets were included
+in that limited build so modpost could resolve their exports. No kernel
+Image rebuild or device installation was performed. If building modules
+again, use the actual target kernel release and its matching build output.
+
+Install both new modules and repack the active header-v2 boot image with
+the updated board DTB and existing kernel and ramdisk. CAMSS waits for
+both connected sensors, so an unresolved front-sensor probe can delay media
+device registration. After booting, load the supplies and sensors::
+
+    modprobe i2c-qcom-cci
+    modprobe sgm38120
+    modprobe aw37004
+    modprobe imx355
+    modprobe s5kkd1
+    modprobe qcom-camss
+    dmesg | grep -Ei 's5kkd1|aw37004|sgm38120|cci|camss|defer'
+    media-ctl -d /dev/media0 -p
+
+Check for ``s5kkd1 <bus>-003d`` linked to ``msm_csiphy3``. Its probe checks
+chip ID 0x4841 before registering the sensor. For an I2C error or ID
+mismatch, collect the boot log and deferred-device list and check AW37004,
+GPIO126, GPIO68 and the three rails before attempting capture.
+
+With the updated helper copied to the phone and camera apps closed::
+
+    sudo sh froggerpro-capture.sh s5kkd1-bars
+    sudo sh froggerpro-capture.sh s5kkd1
+
+Repeat each command to check start/stop and power cycling. Ten frames at
+3280 by 2464 packed RAW10 should total 101,319,680 bytes if CAMSS negotiates
+the same 4112-byte stride as IMX355. Verify the reported stride and buffer
+count, decode a later color-bar frame, then inspect an uncovered optical
+frame. Check that CSID CRC/ECC counters stay zero and that libcamera lists
+both cameras. Clear the test pattern before testing the front camera in
+GNOME Camera, and visually verify mounting rotation with the phone upright.
