@@ -145,7 +145,8 @@ static int csiphy_set_clock_rates(struct csiphy_device *csiphy)
 				csiphy->fmt[MSM_CSIPHY_PAD_SINK].code);
 	u8 num_lanes = csiphy->cfg.csi2->lane_cfg.num_data;
 
-	link_freq = camss_get_link_freq(&csiphy->subdev.entity, bpp, num_lanes);
+	link_freq = camss_get_link_freq(&csiphy->subdev.entity, bpp, num_lanes,
+					csiphy->cfg.csi2->lane_cfg.cphy);
 	if (link_freq < 0)
 		link_freq  = 0;
 
@@ -272,13 +273,21 @@ static int csiphy_stream_on(struct csiphy_device *csiphy)
 	u8 num_lanes = csiphy->cfg.csi2->lane_cfg.num_data;
 	u8 val;
 
-	link_freq = camss_get_link_freq(&csiphy->subdev.entity, bpp, num_lanes);
+	link_freq = camss_get_link_freq(&csiphy->subdev.entity, bpp, num_lanes,
+					csiphy->cfg.csi2->lane_cfg.cphy);
 
 	if (link_freq < 0) {
 		dev_err(csiphy->camss->dev,
 			"Cannot get CSI2 transmitter's link frequency\n");
 		return -EINVAL;
 	}
+
+	/* The initial v2.2.1 C-PHY table covers 1.7 to 2.0 Gsymbols/s. */
+	if (cfg->csi2->lane_cfg.cphy &&
+	    (link_freq <= 850000000 || link_freq > 1000000000))
+		return dev_err_probe(csiphy->camss->dev, -EINVAL,
+				     "unsupported C-PHY link frequency %lld\n",
+				     link_freq);
 
 	if (csiphy->base_clk_mux) {
 		val = readl_relaxed(csiphy->base_clk_mux);
