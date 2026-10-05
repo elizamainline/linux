@@ -205,6 +205,14 @@ config REGULATOR_ATC260X
 	  ATC260x PMICs. This will enable support for all the software
 	  controllable DCDC/LDO regulators.
 
+config REGULATOR_AW37004
+	tristate "Awinic AW37004 camera PMIC"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Enable support for the four LDO outputs of the Awinic AW37004.
+	  Channels are controlled individually over I2C.
+
 config REGULATOR_AW37503
 	tristate "Awinic AW37503 Dual Output Power regulators"
 	depends on I2C && GPIOLIB

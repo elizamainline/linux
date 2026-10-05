@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/awinic,aw37004.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Awinic AW37004 camera power management IC
+
+maintainers:
+  - Oleksii Onchul <oleksiionchul@gmail.com>
+
+description: |
+  The AW37004 provides two digital LDOs with 6 mV voltage steps and two
+  analog LDOs with 12.5 mV steps. Individual outputs are controlled over
+  I2C with the EN input held low.
+
+properties:
+  compatible:
+    const: awinic,aw37004
+
+  reg:
+    maxItems: 1
+
+  enable-gpios:
+    description: Active-high EN input, held low for individual I2C control.
+    maxItems: 1
+
+  vin1-supply:
+    description: Input supply for digital LDO1 and LDO2.
+
+  vin2-supply:
+    description: Input and bias supply for analog LDO3 and LDO4.
+
+  regulators:
+    type: object
+    additionalProperties: false
+
+    patternProperties:
+      "^ldo[1-4]$":
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - regulators
+  - vin2-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@28 {
+            compatible = "awinic,aw37004";
+            reg = <0x28>;
+            enable-gpios = <&gpio 54 GPIO_ACTIVE_HIGH>;
+            vin1-supply = <&vreg_s2>;
+            vin2-supply = <&vreg_bob>;
+
+            regulators {
+                ldo1 {
+                    regulator-name = "camera-dvdd";
+                    regulator-min-microvolt = <1050000>;
+                    regulator-max-microvolt = <1050000>;
+                };
+            };
+        };
+    };
