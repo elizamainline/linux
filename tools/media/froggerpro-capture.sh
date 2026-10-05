@@ -139,7 +139,7 @@ else
 	pattern=0
 	case "$mode" in
 		*-bars) pattern=2 ;;
-		imx896-test) pattern=1 ;;
+		imx896-test) pattern=2 ;;
 	esac
 	if [ "$sensor_name" = imx355 ]; then
 		run v4l2-ctl -d "$source_device" --set-ctrl=horizontal_flip=0,vertical_flip=0
