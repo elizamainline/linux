@@ -4746,11 +4746,12 @@ struct media_pad *camss_find_sensor_pad(struct media_entity *entity)
  * @entity: Media entity in the current pipeline
  * @bpp: Number of bits per pixel for the current format
  * @lanes: Number of lanes in the link to the sensor
+ * @cphy: Use the C-PHY 16/7 coding ratio
  *
  * Return link frequency on success or a negative error code otherwise
  */
 s64 camss_get_link_freq(struct media_entity *entity, unsigned int bpp,
-			unsigned int lanes)
+			unsigned int lanes, bool cphy)
 {
 	struct media_pad *sensor_pad;
 
@@ -4758,7 +4759,8 @@ s64 camss_get_link_freq(struct media_entity *entity, unsigned int bpp,
 	if (!sensor_pad)
 		return -ENODEV;
 
-	return v4l2_get_link_freq(sensor_pad, bpp, 2 * lanes);
+	return v4l2_get_link_freq(sensor_pad, bpp * (cphy ? 7 : 1),
+				  2 * lanes * (cphy ? 16 : 1));
 }
 
 /*
@@ -4867,6 +4869,7 @@ static int camss_parse_endpoint_node(struct device *dev,
 				     struct camss_async_subdev *csd)
 {
 	struct csiphy_lanes_cfg *lncfg = &csd->interface.csi2.lane_cfg;
+	struct camss *camss = dev_get_drvdata(dev);
 	struct v4l2_mbus_config_mipi_csi2 *mipi_csi2;
 	struct v4l2_fwnode_endpoint vep = { { 0 } };
 	unsigned int i;
@@ -4876,11 +4879,9 @@ static int camss_parse_endpoint_node(struct device *dev,
 	if (ret)
 		return ret;
 
-	/*
-	 * Most SoCs support both D-PHY and C-PHY standards, but currently only
-	 * D-PHY is supported in the driver.
-	 */
-	if (vep.bus_type != V4L2_MBUS_CSI2_DPHY) {
+	if (vep.bus_type != V4L2_MBUS_CSI2_DPHY &&
+	    !(vep.bus_type == V4L2_MBUS_CSI2_CPHY &&
+	      camss->res->version == CAMSS_ELIZA)) {
 		dev_err(dev, "Unsupported bus type %d\n", vep.bus_type);
 		return -EINVAL;
 	}
@@ -4888,9 +4889,12 @@ static int camss_parse_endpoint_node(struct device *dev,
 	csd->interface.csiphy_id = vep.base.port;
 
 	mipi_csi2 = &vep.bus.mipi_csi2;
+	lncfg->cphy = vep.bus_type == V4L2_MBUS_CSI2_CPHY;
 	lncfg->clk.pos = mipi_csi2->clock_lane;
 	lncfg->clk.pol = mipi_csi2->lane_polarities[0];
 	lncfg->num_data = mipi_csi2->num_data_lanes;
+	if (lncfg->cphy && lncfg->num_data != 3)
+		return dev_err_probe(dev, -EINVAL, "C-PHY requires three trios\n");
 
 	lncfg->data = devm_kcalloc(dev,
 				   lncfg->num_data, sizeof(*lncfg->data),
@@ -4900,7 +4904,10 @@ static int camss_parse_endpoint_node(struct device *dev,
 
 	for (i = 0; i < lncfg->num_data; i++) {
 		lncfg->data[i].pos = mipi_csi2->data_lanes[i];
-		lncfg->data[i].pol = mipi_csi2->lane_polarities[i + 1];
+		lncfg->data[i].pol = mipi_csi2->lane_polarities[i + !lncfg->cphy];
+		if (lncfg->cphy && (lncfg->data[i].pos != i || lncfg->data[i].pol))
+			return dev_err_probe(dev, -EINVAL,
+					     "unsupported C-PHY trio mapping\n");
 	}
 
 	return 0;

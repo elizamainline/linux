@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Qualcomm CSIPHY v2.2.1 - D-PHY mode
+ * Qualcomm CSIPHY v2.2.1 - D-PHY and three-trio C-PHY
  *
  * Copyright (c) 2023-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
@@ -120,13 +120,129 @@ static const struct csiphy_reg dphy_regs[] = {
 	{ 0x0c10, 0x72, 0, false },
 };
 
+/* C-PHY mission settings from cam_csiphy_2_2_1_hwreg.h. */
+static const struct csiphy_reg cphy_regs[] = {
+	{ 0x0294, 0x09, 0, false },
+	{ 0x02f4, 0x00, 0, false },
+	{ 0x02f8, 0x00, 0, false },
+	{ 0x02fc, 0x00, 0, false },
+	{ 0x02f0, 0xef, 211, false },
+	{ 0x0694, 0x09, 0, false },
+	{ 0x06f4, 0x00, 0, false },
+	{ 0x06f8, 0x00, 0, false },
+	{ 0x06fc, 0x00, 0, false },
+	{ 0x06f0, 0xef, 211, false },
+	{ 0x0a94, 0x09, 0, false },
+	{ 0x0af4, 0x00, 0, false },
+	{ 0x0af8, 0x00, 0, false },
+	{ 0x0afc, 0x00, 0, false },
+	{ 0x0af0, 0xef, 211, false },
+	{ 0x0204, 0x00, 0, false },
+	{ 0x02e4, 0x00, 0, false },
+	{ 0x02e8, 0x7f, 0, false },
+	{ 0x02ec, 0x7f, 0, false },
+	{ 0x0218, 0x3e, 0, false },
+	{ 0x021c, 0x41, 0, false },
+	{ 0x0220, 0x41, 0, false },
+	{ 0x0224, 0x7f, 0, false },
+	{ 0x0228, 0x00, 0, false },
+	{ 0x022c, 0x00, 0, false },
+	{ 0x0264, 0x01, 0, false },
+	{ 0x0244, 0xb2, 0, false },
+	{ 0x0310, 0x35, 0, false },
+	{ 0x02bc, 0xd0, 0, false },
+	{ 0x0254, 0x00, 0, false },
+	{ 0x0240, 0x00, 0, false },
+	{ 0x0260, 0xa8, 0, false },
+	{ 0x0284, 0x00, 0, false },
+	{ 0x0290, 0x02, 0, false },
+	{ 0x0604, 0x00, 0, false },
+	{ 0x06e4, 0x00, 0, false },
+	{ 0x06e8, 0x7f, 0, false },
+	{ 0x06ec, 0x7f, 0, false },
+	{ 0x0618, 0x3e, 0, false },
+	{ 0x061c, 0x41, 0, false },
+	{ 0x0620, 0x41, 0, false },
+	{ 0x0624, 0x7f, 0, false },
+	{ 0x0628, 0x00, 0, false },
+	{ 0x062c, 0x00, 0, false },
+	{ 0x0664, 0x01, 0, false },
+	{ 0x0644, 0xb2, 0, false },
+	{ 0x0710, 0x35, 0, false },
+	{ 0x06bc, 0xd0, 0, false },
+	{ 0x0654, 0x00, 0, false },
+	{ 0x0640, 0x00, 0, false },
+	{ 0x0660, 0xa8, 0, false },
+	{ 0x0684, 0x00, 0, false },
+	{ 0x0690, 0x02, 0, false },
+	{ 0x0a04, 0x00, 0, false },
+	{ 0x0ae4, 0x00, 0, false },
+	{ 0x0ae8, 0x7f, 0, false },
+	{ 0x0aec, 0x7f, 0, false },
+	{ 0x0a18, 0x3e, 0, false },
+	{ 0x0a1c, 0x41, 0, false },
+	{ 0x0a20, 0x41, 0, false },
+	{ 0x0a24, 0x7f, 0, false },
+	{ 0x0a28, 0x00, 0, false },
+	{ 0x0a2c, 0x00, 0, false },
+	{ 0x0a64, 0x01, 0, false },
+	{ 0x0a44, 0xb2, 0, false },
+	{ 0x0b10, 0x35, 0, false },
+	{ 0x0abc, 0xd0, 0, false },
+	{ 0x0a54, 0x00, 0, false },
+	{ 0x0a40, 0x00, 0, false },
+	{ 0x0a60, 0xa8, 0, false },
+	{ 0x0a84, 0x00, 0, false },
+	{ 0x0a90, 0x02, 0, false },
+};
+
+/* Standard-channel AFE/CDR settings for 1.7 to 2.0 Gsymbols/s. */
+static const struct csiphy_reg cphy_2gsps_regs[] = {
+	{ 0x0268, 0xf1, 0, false },
+	{ 0x0294, 0x01, 0, false },
+	{ 0x0278, 0x2e, 0, false },
+	{ 0x0288, 0x20, 0, false },
+	{ 0x026c, 0x0d, 0, false },
+	{ 0x028c, 0x37, 0, false },
+	{ 0x0270, 0x00, 0, false },
+	{ 0x0274, 0x00, 0, false },
+	{ 0x0668, 0xf1, 0, false },
+	{ 0x0694, 0x01, 0, false },
+	{ 0x0678, 0x2e, 0, false },
+	{ 0x0688, 0x20, 0, false },
+	{ 0x066c, 0x0d, 0, false },
+	{ 0x068c, 0x37, 0, false },
+	{ 0x0670, 0x00, 0, false },
+	{ 0x0674, 0x00, 0, false },
+	{ 0x0a68, 0xf1, 0, false },
+	{ 0x0a94, 0x01, 0, false },
+	{ 0x0a78, 0x2e, 0, false },
+	{ 0x0a88, 0x20, 0, false },
+	{ 0x0a6c, 0x0d, 0, false },
+	{ 0x0a8c, 0x37, 0, false },
+	{ 0x0a70, 0x00, 0, false },
+	{ 0x0a74, 0x00, 10, false },
+	{ 0x020c, 0x27, 0, false },
+	{ 0x0208, 0x00, 0, false },
+	{ 0x0210, 0x00, 0, false },
+	{ 0x0214, 0x00, 0, false },
+	{ 0x060c, 0x27, 0, false },
+	{ 0x0608, 0x00, 0, false },
+	{ 0x0610, 0x00, 0, false },
+	{ 0x0614, 0x00, 0, false },
+	{ 0x0a0c, 0x27, 0, false },
+	{ 0x0a08, 0x00, 0, false },
+	{ 0x0a10, 0x00, 0, false },
+	{ 0x0a14, 0x00, 0, false },
+};
+
 static u8 csiphy_get_lane_mask(struct csiphy_lanes_cfg *cfg)
 {
-	u8 mask = BIT(7);
+	u8 mask = cfg->cphy ? 0 : BIT(7);
 	unsigned int i;
 
 	for (i = 0; i < cfg->num_data; i++)
-		mask |= BIT(cfg->data[i].pos * 2);
+		mask |= BIT(cfg->data[i].pos * 2 + cfg->cphy);
 
 	return mask;
 }
@@ -142,7 +258,12 @@ static void csiphy_reset(struct csiphy_device *csiphy)
 {
 	writel(1, csiphy->base + CSIPHY_RESET);
 	usleep_range(1000, 2000);
-	writel(2, csiphy->base + CSIPHY_RESET);
+	if (csiphy->cfg.csi2 && csiphy->cfg.csi2->lane_cfg.cphy) {
+		writel(0x0e, csiphy->base + CSIPHY_RESET);
+		fsleep(3048);
+	} else {
+		writel(2, csiphy->base + CSIPHY_RESET);
+	}
 }
 
 static irqreturn_t csiphy_isr(int irq, void *dev)
@@ -160,6 +281,22 @@ static irqreturn_t csiphy_isr(int irq, void *dev)
 		writel(0, csiphy->base + CSIPHY_IRQ_CLEAR(i));
 
 	return IRQ_HANDLED;
+}
+
+static void csiphy_write_regs(struct csiphy_device *csiphy,
+			      const struct csiphy_reg *regs, unsigned int nregs,
+			      u32 settle)
+{
+	unsigned int i;
+
+	for (i = 0; i < nregs; i++) {
+		const struct csiphy_reg *reg = &regs[i];
+
+		writel(reg->settle ? settle : reg->value,
+		       csiphy->base + reg->offset);
+		if (reg->delay_us)
+			udelay(reg->delay_us);
+	}
 }
 
 static void csiphy_lanes_enable(struct csiphy_device *csiphy,
@@ -183,13 +320,13 @@ static void csiphy_lanes_enable(struct csiphy_device *csiphy,
 	writel(0x7a, csiphy->base + CSIPHY_COMMON_CTRL);
 	writel(1, csiphy->base + CSIPHY_POWER_CTRL);
 
-	for (i = 0; i < ARRAY_SIZE(dphy_regs); i++) {
-		const struct csiphy_reg *reg = &dphy_regs[i];
-
-		writel(reg->settle ? settle : reg->value,
-		       csiphy->base + reg->offset);
-		if (reg->delay_us)
-			udelay(reg->delay_us);
+	if (cfg->csi2->lane_cfg.cphy) {
+		/* Apply rate settings before the common C-PHY mission table. */
+		csiphy_write_regs(csiphy, cphy_2gsps_regs,
+				  ARRAY_SIZE(cphy_2gsps_regs), 0);
+		csiphy_write_regs(csiphy, cphy_regs, ARRAY_SIZE(cphy_regs), 0);
+	} else {
+		csiphy_write_regs(csiphy, dphy_regs, ARRAY_SIZE(dphy_regs), settle);
 	}
 
 	/* Keep PHY interrupts masked; capture completion comes from CSID. */

@@ -30,11 +30,13 @@ struct csiphy_lane {
 
 /**
  * struct csiphy_lanes_cfg - CSIPHY lanes configuration
+ * @cphy:     use C-PHY trios instead of D-PHY lanes
  * @num_data: number of data lanes
  * @data:     data lanes configuration
  * @clk:      clock lane configuration (only for D-PHY)
  */
 struct csiphy_lanes_cfg {
+	bool cphy;
 	int num_data;
 	struct csiphy_lane *data;
 	struct csiphy_lane clk;
