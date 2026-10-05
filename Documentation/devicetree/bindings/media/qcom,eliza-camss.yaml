@@ -25,7 +25,7 @@ properties:
     maxItems: 8
 
   clocks:
-    maxItems: 19
+    maxItems: 20
 
   interrupts:
     maxItems: 6
@@ -71,6 +71,7 @@ properties:
       - const: vfe_lite
       - const: tpg
       - const: tpg_cphy_rx
+      - const: qdss_debug_xo
 
   interrupt-names:
     items:
