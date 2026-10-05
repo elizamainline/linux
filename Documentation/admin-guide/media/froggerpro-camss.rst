@@ -8,8 +8,8 @@ with four raw RDI outputs, four CSIPHY v2.2.1 receivers in D-PHY mode,
 two TPG v1.4 generators, and two CCI controllers with four I2C buses.
 The FroggerPro device tree enables these blocks, the CSI analog supplies
 and the Sony IMX355 ultrawide sensor using the existing mainline driver.
-The S5KKD1 front sensor and its AW37004 digital supply now have initial
-drivers and board wiring; front-camera detection and capture need a device test.
+The S5KKD1 front sensor and its AW37004 digital supply have initial drivers
+and board wiring. Front-camera capture works; image tuning remains to be done.
 
 The first device boot reached CAMSS entity registration and configured the
 SGM38120 camera PMIC. IMX355's initial chip-ID read timed out on CCI0 master
@@ -386,12 +386,49 @@ S5KKD1 front camera
 -------------------
 
 Initial support added on 2026-10-05 uses the stock 3280 by 2464, approximately
-30 fps, four-lane D-PHY RAW10 mode. It exposes RGGB Bayer output, exposure,
+30 fps, four-lane D-PHY RAW10 mode. It exposes GRBG Bayer output, exposure,
 analogue gain (1/32 units, 1x through 16x), fixed unity digital gain (256),
 vertical blanking and the four stock test-pattern settings. Orientation is
-Front and rotation is 270 degrees, from the stock front-camera slot. Full
+Front and rotation is 90 degrees, corrected after an upside-down preview. Full
 resolution, HDR and additional frame rates are not exposed by this driver.
-Neither front sensor detection nor captured images have been validated yet.
+The user confirmed working capture on 2026-10-05 and a much improved image
+after applying the Bayer-format and mounting-rotation corrections.
+
+Image format validation on 2026-10-05
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The initial driver advertised RGGB based on the stock mode metadata.
+Its sensor color-bar output instead identifies GRBG: the yellow bar has
+``[1023, 1023; 0, 1023]`` in a 2 by 2 tile, cyan has
+``[1023, 0; 1023, 1023]`` and green has ``[1023, 0; 0, 1023]``.
+Decoding all eight bars as GRBG produces white, yellow, cyan, green,
+magenta, red, blue and black in order. Treating green samples as red and
+blue explained the nearly monochrome optical preview.
+
+The driver now advertises ``SGRBG10_1X10`` and the capture helper requests
+packed GRBG RAW10 (``pgAA``) for S5KKD1. IMX355 retains RGGB (``pRAA``).
+Three-frame front captures completed with a 4112-byte stride and
+10,131,968 bytes per frame. A libcamera preview also completed eight
+frames at approximately 30 fps. After the user's reboot, the sensor
+reports GRBG and ``camera_sensor_rotation=90``.
+
+Libcamera 0.7.2 on the phone still falls back to ``uncalibrated.yaml``
+because there is no ``s5kkd1.yaml``. That profile enables automatic white
+balance, black-level processing, image adjustments and exposure control,
+but leaves sensor-specific color correction disabled. The pre-correction
+preview log showed an identity color matrix and saturation 1, rather
+than an intentional grayscale conversion. The missing S5KKD1 sensor helper
+also means analogue-gain conversion needs userspace support: the driver's
+register units are 1/32, with 32 representing unity gain.
+
+Further image-quality work belongs primarily in libcamera: verify gain
+conversion, measure black level and fit color correction under known
+lighting. The supplied stock tree contains
+``com.qti.tuned.FroggerPro_qtech_s5kkd1_front.bin`` and
+``com.qti.eeprom.FroggerPro_front_p24u128b_s5kkd1_eeprom.so``. These are
+potential sources of tuning and per-module calibration information;
+they are not directly usable as libcamera tuning files, and their contents
+have not yet been decoded or applied.
 
 ===================  ===============================================
 Resource             Assignment
