@@ -31,6 +31,7 @@
 #define		IRQ_CMD_CLEAR			BIT(0)
 
 #define CSID_RUP_AUP_CMD		0x18
+#define		CSID_RUP_RDI(rdi)		(BIT(4) << (rdi))
 #define		CSID_RUP_AUP_RDI(rdi)		((BIT(4) | BIT(20)) << (rdi))
 
 #define CSID_TOP_IRQ_STATUS		0x7C
@@ -237,6 +238,14 @@ static void csid_configure_stream(struct csid_device *csid, u8 enable)
 	for (i = 0; i < MSM_CSID_MAX_SRC_STREAMS; i++)
 		if (csid->phy.en_vc & BIT(i)) {
 			__csid_configure_rdi_stream(csid, enable, i, 0);
+			/*
+			 * VFE queues its initial addresses before CSID stream setup.
+			 * Update the Eliza path configuration after programming it,
+			 * before enabling reception and resuming at a frame boundary.
+			 * Keep AUP clear so the queued addresses are not submitted again.
+			 */
+			if (enable && csid->camss->res->version == CAMSS_ELIZA)
+				writel(CSID_RUP_RDI(i), csid->base + CSID_RUP_AUP_CMD);
 			__csid_configure_rx(csid, &csid->phy, 0);
 			__csid_ctrl_rdi(csid, enable, i);
 		}
