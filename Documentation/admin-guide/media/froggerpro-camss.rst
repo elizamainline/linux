@@ -745,13 +745,13 @@ IMX896 rear main camera
 Initial support uses the FroggerPro stock 4096 by 3072 RAW10 preview mode,
 with 2 by 2 binning across the 8192 by 6144 array. The driver checks chip ID
 ``0x0896`` at register ``0x0016`` and accepts a 19.2 MHz input clock and three
-C-PHY trios. Exposure, analogue/digital gain, vertical blanking, a custom
-test pattern and firmware mounting controls are exposed through V4L2.
+C-PHY trios. Exposure, analogue/digital gain, vertical blanking, custom and color-bar
+test patterns and firmware mounting controls are exposed through V4L2.
 The stock sensor library encodes analogue gain as
 ``16384 / (16384 - register)`` with a 64x limit (register 16128).
 Userspace sensor helpers must use this conversion for automatic gain control.
-Normal readout is advertised as RGGB; Bayer order and mounting rotation
-need confirmation from captured frames. There is no autofocus or OIS driver
+Normal readout is RGGB, verified by the captured color-bar sequence.
+Mounting rotation still needs confirmation from an optical scene. There is no autofocus or OIS driver
 for this module yet, so optical images may be out of focus.
 
 The stock Kera QRD overlay, slot ``qcom,cam-sensor0``, supplies the wiring:
@@ -792,21 +792,24 @@ is required.
 
 The mode programs ``0x0111=3`` (C-PHY), ``0x0114=2`` (three trios), line
 length 11904 and frame length 3774. The output PLL uses a 19.2 MHz clock,
-predivider 19 and multiplier 1955, giving about 1.976 Gsymbols/s and a
-V4L2 link frequency of 987789474 Hz (half the symbol rate). The VT PLL
+predivider 19, multiplier 1955 and OP system divider 2, giving about
+987.789 Msymbols/s and a V4L2 link frequency of 493894737 Hz (half the
+symbol rate). The initial calculation omitted the OP system divider and
+advertised twice the actual frequency. The VT PLL
 programming gives a timing pixel rate of 1356800000 Hz, about 30.2 frames/s
 with the stock line and frame lengths. The stock ``outputPixelClock``
 metadata is a separate transport quantity and is not used for exposure
 or blanking timing. The stock mode also emits phase-detection data on VC2,
 data type ``0x30``; initial CAMSS capture selects the image on VC0/RAW10.
-The existing Eliza C-PHY profile covers the initial symbol rate.
+The Eliza PHY selects the stock short-channel 1.0 Gsymbols/s profile
+for this mode; the 2.0 Gsymbols/s profile remains available for telephoto.
 
 On 2026-10-05, targeted LLVM arm64 object/module and board DTB builds passed,
 as did binding/example and board schema validation. The register sequences
 were compared byte for byte with the stock lists. Capture helper routing,
 format and pattern commands passed mock checks for the new camera and the
 existing modes. These are build/static checks; no IMX896 hardware capture
-was performed.
+was performed at that stage.
 
 Use the existing output directory for targeted builds::
 
@@ -833,12 +836,75 @@ Run the helper after closing camera applications::
     sudo sh froggerpro-capture.sh imx896-test
     sudo sh froggerpro-capture.sh imx896
 
-The test mode selects the stock custom pattern (menu index 1, register
-``0x0600=5`` after ``0xa200=0``), whose content is not yet validated. Optical
-mode clears the pattern. Both modes route CSIPHY1 to RDI0 and request ten
+The test mode selects color bars (menu index 2, register ``0x0600=2``
+after ``0xa200=0``). Menu index 1 retains the stock custom pattern at
+``0x0600=5``, which produces zero-filled frames with this initialization.
+Optical mode clears the pattern. Both modes route CSIPHY1 to RDI0 and request ten
 4096 by 3072 packed RGGB RAW10 frames. At a negotiated 5120-byte stride,
 ten frames total 157286400 bytes. Verify buffer completion, frame content,
 Bayer order, orientation and repeated stream starts; build success alone
 is not evidence that the camera captures. If capture fails, keep the
 helper's diagnostics and use the CAMSS register snapshot tool during the
 stream to distinguish receiver errors from a CSID/VFE DMA stall.
+
+Live main-camera diagnosis and receiver corrections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After the user's reboot on 2026-10-05, SSH captures reproduced the black
+output: optical capture stalled, and a completed test buffer contained only
+zero bytes. Chip ID, mode registers and the advancing sensor frame counter
+confirmed that IMX896 was powered and streaming. The internal generator and
+IMX355 captured ten frames each, while both C-PHY cameras stalled. CSID
+reported receiver FIFO/underflow errors. Zero CRC/ECC counters alone did
+not establish successful image transport.
+
+Two receiver corrections were verified together. The stock IMX896 OP PLL
+system divider is 2 at ``0x030b``, so its symbol rate is 987.789 Msymbols/s,
+not 1.976 Gsymbols/s. This also agrees with the stock transport pixel clock:
+three trios times symbol rate times 16/7, divided by RAW10's ten bits per
+pixel, gives approximately 677.341 Mpixels/s. The sensor, binding and board
+endpoint now advertise 493894737 Hz. CAMSS supports this frequency with the
+complete stock short-channel 1.0 Gsymbols/s table, including settle count
+``0x3c``, CDR ``0x58`` and ``0x0214/0x0614/0x0a14=9``. It selects profiles
+by link frequency, retaining the existing telephoto profile and rejecting
+rates between the supported windows.
+
+The powered PHY also read ``0x1000=0`` during failed captures. Reapplying
+``0x0e`` and the downstream 3048 us delay during stream setup selects
+three-phase mode after pipeline power-up/reset. Applying only the rate
+profile, without this stream-time mode selection, reproduced the stall.
+The committed fix retains the existing power-on reset and adds stream-time
+mode selection only for C-PHY.
+
+A temporary CAMSS module selected the corrected profile for CSIPHY1 while
+the running DT and sensor module still advertised the old frequency. With
+both corrections, two consecutive optical captures and the stock custom
+pattern capture each completed ten 4096 by 3072 packed RAW10 buffers, totaling
+157286400 bytes per capture at about 30 fps. The optical frame contained
+nonzero scene data; the dark, blurred image still needs exposure, focus and
+image-processing work. The stock custom pattern produced zero-filled frames,
+so it is unsuitable as a visible transport test. A separate color-bar test
+with ``0x0600=2`` completed ten buffers with zero CRC/ECC counters and no
+receiver FIFO/underflow errors in three live samples. The driver now exposes
+this pattern at menu index 2 and the capture helper uses it. Decoding the
+pattern as RGGB gives white, yellow, cyan, green, magenta, red, blue and
+black bars in the expected order. A subsequent S5KJN5 color-bar capture also completed
+ten buffers. The unchanged installed CAMSS module and WirePlumber service
+were restored after the temporary tests. The final frequency-based selection
+requires the updated IMX896 module, CAMSS module and board DTB together.
+
+Temporary standard-channel, settling, trio-order, packet-check, PDAF and
+higher decoder/VFE clock experiments were restored. The 480 MHz clock
+experiment did not fix the failure and is not included in the changes.
+Diagnostic captures and logs are retained on the phone under
+``/tmp/froggerpro-imx896-debug``. A host optical sample is
+``/tmp/froggerpro-imx896-optical.raw``. The public `Fairphone 6 driver
+<https://forgejo.catcrafts.net/Catcrafts/milos-linux/src/branch/combined-stable/drivers/media/i2c/imx896.c>`_
+provided an additional comparison for PLL and receiver setup; the mode and
+PHY register tables used here remain those supplied in the FroggerPro sources.
+
+For CAMSS-only builds with separately built videobuf2 modules, add::
+
+    KBUILD_EXTRA_SYMBOLS=/tmp/froggerpro-build/drivers/media/common/videobuf2/Module.symvers
+
+This supplies their symbol exports to modpost without a full kernel rebuild.
