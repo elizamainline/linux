@@ -26,6 +26,9 @@
 #define S5KJN5_STREAMING_ON		0x01
 #define S5KJN5_STREAMING_OFF		0x00
 
+#define S5KJN5_REG_ORIENTATION		CCI_REG8(0x0101)
+#define S5KJN5_VFLIP			BIT(1)
+
 #define S5KJN5_REG_FRAME_COUNT	CCI_REG8(0x0005)
 #define S5KJN5_FRAME_COUNT_STANDBY	0xff
 #define S5KJN5_STANDBY_POLL_ITERS	20
@@ -3501,7 +3504,7 @@ static const struct s5kjn5_mode s5kjn5_modes[] = {
 	{
 		.width		= 4096,
 		.height		= 3072,
-		.code		= MEDIA_BUS_FMT_SGRBG10_1X10,
+		.code		= MEDIA_BUS_FMT_SBGGR10_1X10,
 		.hts		= 4844,
 		.vts_min	= 3169,
 		/* Default to 30 fps; the stock mode table programs 60 fps. */
@@ -3693,8 +3696,18 @@ static int s5kjn5_init(struct s5kjn5 *s5kjn5,
 	if (ret)
 		return ret;
 
-	return cci_multi_reg_write(s5kjn5->regmap, mode->regs,
-				   mode->num_regs, NULL);
+	ret = cci_multi_reg_write(s5kjn5->regmap, mode->regs,
+				  mode->num_regs, NULL);
+	if (ret || !mode->cphy)
+		return ret;
+
+	/*
+	 * Compensate the FroggerPro telephoto module's mirrored image. With
+	 * its 270-degree mounting rotation, a sensor vertical flip corrects
+	 * the displayed horizontal mirror and changes native GRBG to BGGR.
+	 */
+	return cci_write(s5kjn5->regmap, S5KJN5_REG_ORIENTATION,
+			 S5KJN5_VFLIP, NULL);
 }
 
 static const char * const s5kjn5_test_pattern_menu[] = {

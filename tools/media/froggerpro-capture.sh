@@ -99,8 +99,8 @@ else
 		s5kjn5|s5kjn5-bars)
 			sensor_name=s5kjn5
 			phy_entity=msm_csiphy2
-			bus_code=SGRBG10_1X10
-			pixel_format=pgAA
+			bus_code=SBGGR10_1X10
+			pixel_format=pBAA
 			size=4096x3072
 			width=4096
 			height=3072
