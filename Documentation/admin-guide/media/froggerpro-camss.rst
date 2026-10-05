@@ -104,10 +104,9 @@ All diagnostic clock enable bits were restored after these tests.
 
 The binding, device tree and Eliza VFE clock list now include ``qdss_debug_xo``.
 This keeps the clock enabled through the existing VFE power and clock cleanup
-paths, without making it permanently critical. The permanent driver and DTB
-combination still needs a boot test without register overrides. No new kernel,
-DTB or module was installed during the isolation tests, and GNOME Camera has
-not yet been retested with the permanent fix.
+paths, without making it permanently critical. After installing the permanent
+driver and DTB and rebooting, the user confirmed that capture and GNOME Camera
+work. No new kernel, DTB or module was installed during the isolation tests.
 
 Install the updated board DTB and matching CAMSS module, then repeat TPG0,
 sensor-bar and optical starts. Ten TPG frames should total 3,072,000 bytes at
@@ -115,6 +114,23 @@ sensor-bar and optical starts. Ten TPG frames should total 3,072,000 bytes at
 frame size. Clear the sensor test pattern before testing GNOME Camera.
 Neither a completed build nor a successful stream-on ioctl validates frame
 delivery.
+
+Image orientation follow-up
+---------------------------
+
+The first working GNOME Camera preview was upside down. The running IMX355
+exported ``camera_sensor_rotation=90`` from the board's ``rotation`` property;
+the rear-facing ``camera_orientation`` control correctly reported Back.
+The board rotation is now 270 degrees to correct the observed 180-degree
+orientation error through mounting metadata. The IMX355 driver already exposes
+this property to userspace, so no sensor-driver or flip-default change is needed.
+
+The orientation update builds only the board DTB. A boot image repacked from
+the installed image contains the updated DTB with a byte-identical kernel and
+ramdisk; its decoded DTB differs only in the rotation property. Confirm that
+the sensor reports 270 after booting it, then check both the GNOME Camera
+preview and a saved photo with the phone upright. This orientation change
+still needs that visual validation.
 
 Hardware information
 --------------------
