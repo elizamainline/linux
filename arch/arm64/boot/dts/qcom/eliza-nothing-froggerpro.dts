@@ -390,7 +390,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_front_default>;
 		orientation = <0>;
-		rotation = <270>;
+		rotation = <90>;
 
 		port {
 			s5kkd1_ep: endpoint {
