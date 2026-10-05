@@ -282,9 +282,10 @@ static int csiphy_stream_on(struct csiphy_device *csiphy)
 		return -EINVAL;
 	}
 
-	/* The initial v2.2.1 C-PHY table covers 1.7 to 2.0 Gsymbols/s. */
+	/* v2.2.1 C-PHY profiles cover 0.9-1.0 and 1.7-2.0 Gsymbols/s. */
 	if (cfg->csi2->lane_cfg.cphy &&
-	    (link_freq <= 850000000 || link_freq > 1000000000))
+	    !((link_freq > 450000000 && link_freq <= 500000000) ||
+	      (link_freq > 850000000 && link_freq <= 1000000000)))
 		return dev_err_probe(csiphy->camss->dev, -EINVAL,
 				     "unsupported C-PHY link frequency %lld\n",
 				     link_freq);
