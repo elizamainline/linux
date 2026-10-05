@@ -44,8 +44,8 @@
 #define IMX896_NATIVE_WIDTH	8192
 #define IMX896_NATIVE_HEIGHT	6144
 
-/* Half the C-PHY symbol rate: 19.2 MHz * 1955 / 19 / 2. */
-static const s64 imx896_link_freqs[] = { 987789474 };
+/* OP PLL / OP_SYS_CLK_DIV / 2: 19.2 MHz * 1955 / 19 / 2 / 2. */
+static const s64 imx896_link_freqs[] = { 493894737 };
 
 /* Stock power-up order: 1.8 V analog, 2.8 V analog, core, I/O. */
 static const char * const imx896_supply_names[] = {
@@ -835,6 +835,7 @@ static int imx896_init(struct imx896 *imx896,
 static const char * const imx896_test_pattern_menu[] = {
 	"Disabled",
 	"Custom Pattern",
+	"Color Bars",
 };
 
 static int imx896_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -890,7 +891,7 @@ static int imx896_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (ctrl->val)
 			cci_write(imx896->regmap, CCI_REG16(0xa200), 0, &ret);
 		cci_write(imx896->regmap, IMX896_REG_TEST_PATTERN,
-			  ctrl->val ? 5 : 0, &ret);
+			  ctrl->val == 1 ? 5 : ctrl->val, &ret);
 		break;
 
 	default:
