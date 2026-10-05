@@ -4,13 +4,15 @@ Nothing Phone (4a) Pro CAMSS bring-up
 ===================================
 
 The initial Eliza (SM7750) support exposes one Titan 970 Lite CSID/VFE
-with four raw RDI outputs, four CSIPHY v2.2.1 receivers in D-PHY mode,
+with four raw RDI outputs, four CSIPHY v2.2.1 receivers supporting D-PHY
+and an initial three-trio C-PHY profile,
 two TPG v1.4 generators, and two CCI controllers with four I2C buses.
 The FroggerPro device tree enables these blocks, the CSI analog supplies
 and the Sony IMX355 ultrawide sensor using the existing mainline driver.
 The S5KKD1 front sensor and its AW37004 digital supply have initial drivers
 and board wiring. Front-camera capture works; image tuning remains to be done.
-The S5KJN5 telephoto sensor has an initial, unvalidated D-PHY configuration.
+The S5KJN5 telephoto sensor probes; its initial D-PHY preview was black.
+The board now selects its stock C-PHY mode, pending capture validation.
 
 The first device boot reached CAMSS entity registration and configured the
 SGM38120 camera PMIC. IMX355's initial chip-ID read timed out on CCI0 master
@@ -19,7 +21,7 @@ adapter nodes to their controller nodes so the platform probe selects them.
 The next boot log no longer reports the CCI timeout or IMX355 probe failure.
 IMX355 now probes and sends valid RAW10 packets through CSIPHY0. Initial raw
 captures stalled before a buffer completed; enabling the missing CAMNOC QDSS
-XO clock restored capture as described below. The rear main sensor, C-PHY,
+XO clock restored capture as described below. The rear main sensor,
 full TFE processing and ISP image processing are outside the initial
 support. The test generators can exercise CSID and VFE without a sensor;
 they do not exercise the external PHYs or CCI buses.
@@ -143,7 +145,7 @@ Resources and supply assignments come from the SM7750/Kera (SoC ID 659)
 base DTB in the FroggerPro LineageOS device tree. Register programming is
 derived from the matching Qualcomm camera-kernel sources:
 
-* ``cam_csiphy_2_2_1_hwreg.h`` for D-PHY settings;
+* ``cam_csiphy_2_2_1_hwreg.h`` for D-PHY and C-PHY settings;
 * ``cam_ife_csid_lite970.h`` and its Lite 880/980 register tables;
 * ``cam_vfe_lite97x.h`` and its Lite 98x bus table;
 * ``tpg_hw_v_1_4`` for the generator start command and payload format.
@@ -567,22 +569,35 @@ module-dependent AF rail and the unused 1.2 V I/O rail as optional regulators.
 Missing optional rails are not replaced with dummy regulators; other regulator
 errors, including probe deferral, still propagate.
 
-The driver exposes one 4096 by 3072 RAW10 mode with GBRG output, four D-PHY
-data lanes and a 1.248 GHz link frequency. Exposure, analogue gain, digital
-gain, vertical blanking and test patterns are supported. Bayer order,
-orientation, timing, power sequencing and capture remain to be validated on
-FroggerPro. The initial rotation of 270 follows the corrected rear-camera
-mounting metadata used for IMX355; check an upright preview after capture works.
+The initial D-PHY experiment probed successfully after the user's reboot,
+appearing as ``s5kjn5 6-002d`` linked to ``msm_csiphy2``. The user reported a
+black preview. Stock telephoto metadata specifies three C-PHY trios
+(``laneCount = 3``, ``is3Phase = 1``), so the board now selects C-PHY at both
+ends of the link. The imported four-lane D-PHY mode remains available for
+modules wired for that interface.
 
-The stock telephoto modes use three C-PHY lanes (``laneCount = 3``,
-``is3Phase = 1``). Both the imported sensor mode and Eliza's current receiver
-programming use D-PHY. The board node deliberately starts with the imported
-D-PHY mode as an experiment. Stock C-PHY configuration does not establish
-that the module's physical wiring carries all four D-PHY data lanes and the
-clock pair. A successful chip-ID read will establish control-bus access;
-it will not validate this CSI configuration. If probe succeeds but CSI packet
-reception fails, inspect lane wiring and implement the stock C-PHY mode and
-matching CSIPHY/CSID support before changing unrelated DMA settings.
+The C-PHY mode exposes 4096 by 3072 RAW10 with GBRG output, exposure,
+analogue gain, digital gain, vertical blanking and test patterns. Its
+``V4L2_CID_LINK_FREQ`` is 998.4 MHz, half the 1.9968 Gsymbols/s C-PHY symbol
+rate, following the V4L2 CSI-2 convention. The VT pixel clock is 921.6 MHz;
+line length is 4844 and the default frame length is 6338, giving about
+30.02 fps. The stock frame length 3169 is the minimum, allowing about
+60.04 fps by reducing vertical blanking to 97. The default vertical blanking
+is 3266. The transport frequency stays fixed when frame timing changes.
+Bayer order, mounting rotation, measured frame rate and image content still
+need device validation. The initial rotation of 270 follows the corrected
+rear-camera metadata used for IMX355.
+
+CAMSS carries the bus type through CSIPHY and CSID, accounts for C-PHY's
+16/7 coding ratio when deriving a missing link frequency, and sets the Lite
+CSID PHY-type bit at bit 24. The v2.2.1 PHY uses the stock reset-exit value
+``0x0e`` with its 3048 us delay and enables trios with mask ``0x2a``. Its
+rate-dependent settings precede the common C-PHY mission settings, matching
+the downstream driver. This initial profile supports only three trios mapped
+0, 1, 2 on Eliza, standard-channel settings and symbol rates above 1.7 and up
+to 2.0 Gsymbols/s. It uses the table's settle count ``0x27``; other rates,
+channel types and adaptive settle timing need additional implementation.
+Existing D-PHY register tables and test-generator routing are preserved.
 
 ===================  ===============================================
 Resource             Assignment
@@ -590,7 +605,7 @@ Resource             Assignment
 Control bus          CCI1, master 0, GPIO74/75
 I2C address          0x5a stock 8-bit address, 0x2d in Linux
 Identity             0x38e5 at 16-bit register 0x0000
-CSI receiver         CSIPHY2; initial four-lane D-PHY experiment
+CSI receiver         CSIPHY2, three C-PHY trios
 Master clock         CAM BIST MCLK2, GPIO67, 19.2 MHz
 Reset                GPIO125, active low
 Digital power        SGM38120 LDO1, 1.0 V, core and MIPI
@@ -612,28 +627,64 @@ AAC v2 module uses the same sensor identity and address. The external
 DW9827C actuator, OIS, their 3.3 V rails and EEPROM are not driven by this
 initial sensor support. Optical focus and stabilization need separate work.
 
-Use the existing output directory for targeted validation::
+Register provenance
+~~~~~~~~~~~~~~~~~~~
 
-    scripts/config --file /tmp/froggerpro-build/.config --module VIDEO_S5KJN5
-    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 olddefconfig
+The Qtech sensor binary's SHA256 is::
+
+    2ef1f1691f2a165de51718e3f145da80fca3fec9ae5526c51a5b6bfc784ec83d
+
+Directory entry 18429 supplies 3486 initialization writes with a 5 ms delay
+after write 12. Entry 35's mode 3 references entry 3238, which supplies 592
+mode writes. C-PHY uses these paired stock sequences, including their
+firmware, rather than combining the stock mode with the imported firmware.
+Six contiguous firmware/calibration blocks match the imported driver's byte
+arrays and are shared; two additional blocks are specific to the stock
+initialization. Expanded addresses, values, widths and the delay were checked
+against the binary. Programming ends on page ``0x4000`` before applying
+controls and stream-on. Frame-length control changes the stock 60 fps timing
+to the default 30 fps timing after mode programming.
+
+PHY settings come from the locally supplied Qualcomm camera-kernel source::
+
+    drivers/cam_sensor_module/cam_csiphy/include/cam_csiphy_2_2_1_hwreg.h
+
+The 72 common C-PHY writes and 36 standard-channel 2.0 Gsymbols/s profile
+writes were compared against this header. Reset, lane-enable and programming
+order follow ``cam_csiphy_core.c``. These checks establish register provenance;
+they do not establish successful CSI reception on this phone.
+
+Incremental build and next device test
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the existing configured output and its symbol exports. Build the enabled
+sensor modules, the small videobuf2 dependency set for CAMSS modpost, CAMSS,
+and the board DTB::
+
     make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
-        KERNELRELEASE=7.3.0-rc6 W=1 drivers/media/i2c/s5kjn5.o
-    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
-        KERNELRELEASE=7.3.0-rc6 M=drivers/media/i2c \
+        KERNELRELEASE=7.3.0-rc6 W=1 M=drivers/media/i2c \
         MO=/tmp/froggerpro-build/drivers/media/i2c modules
     make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
-        DT_SCHEMA_FILES=media/i2c/samsung,s5kjn5.yaml CHECK_DTBS=y \
-        qcom/eliza-nothing-froggerpro.dtb
+        KERNELRELEASE=7.3.0-rc6 W=1 M=drivers/media/common/videobuf2 \
+        MO=/tmp/froggerpro-build/drivers/media/common/videobuf2 modules
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        KERNELRELEASE=7.3.0-rc6 W=1 M=drivers/media/platform/qcom/camss \
+        MO=/tmp/froggerpro-build/drivers/media/platform/qcom/camss \
+        KBUILD_EXTRA_SYMBOLS=/tmp/froggerpro-build/drivers/media/common/videobuf2/Module.symvers \
+        modules
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        DT_SCHEMA_FILES='media/i2c/samsung,s5kjn5.yaml:media/qcom,eliza-camss.yaml' \
+        CHECK_DTBS=y qcom/eliza-nothing-froggerpro.dtb
 
-Use ``KERNELRELEASE`` only when it matches the kernel on the phone. The
-module build needs the existing complete ``Module.symvers``. This procedure
-builds the enabled I2C sensor modules and the board DTB without rebuilding
-the kernel image or CAMSS. Repack the active boot image with the new DTB
-and its existing kernel and ramdisk, and install the new ``s5kjn5.ko``.
-The currently running tree lacks the sensor node; loading the module alone
-cannot create the endpoint. CAMSS waits for all enabled sensors to bind,
-so a failed telephoto probe can also prevent the other cameras from appearing.
-Keep the working boot image available for rollback.
+Use ``KERNELRELEASE`` only when it matches the kernel on the phone. This
+procedure does not rebuild the kernel Image. Install the updated
+``s5kjn5.ko`` and ``qcom-camss.ko``, then repack the active boot image with
+the C-PHY board DTB and its existing kernel and ramdisk. The running kernel
+has no OF overlay support; replacing modules alone cannot change its live
+D-PHY endpoints. Reboot with the new DTB before testing. Keep the working
+boot image and modules available for rollback. CAMSS waits for all enabled
+sensors to bind, so a failed telephoto probe can also prevent the other
+cameras from appearing.
 
 After booting the updated DTB, load ``s5kjn5`` and confirm that the topology
 contains ``s5kjn5 N-002d`` linked to ``msm_csiphy2``. Close camera applications,
