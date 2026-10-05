@@ -3051,12 +3051,14 @@
 				 <&camcc CAM_CC_IFE_LITE_AHB_CLK>,
 				 <&camcc CAM_CC_IFE_LITE_CLK>,
 				 <&camcc CAM_CC_CPHY_RX_CLK_SRC>,
-				 <&camcc CAM_CC_CSID_CSIPHY_RX_CLK>;
+				 <&camcc CAM_CC_CSID_CSIPHY_RX_CLK>,
+				 <&camcc CAM_CC_QDSS_DEBUG_XO_CLK>;
 			clock-names = "csiphy0", "csiphy0_timer", "csiphy1", "csiphy1_timer",
 				      "csiphy2", "csiphy2_timer", "csiphy3", "csiphy3_timer",
 				      "vfe_lite_csid", "vfe_lite_cphy_rx", "gcc_axi_hf",
 				      "cpas_ahb", "cpas_fast_ahb", "camnoc_axi", "cpas_ife_lite",
-				      "vfe_lite_ahb", "vfe_lite", "tpg", "tpg_cphy_rx";
+				      "vfe_lite_ahb", "vfe_lite", "tpg", "tpg_cphy_rx",
+				      "qdss_debug_xo";
 
 			interrupts = <GIC_SPI 605 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 606 IRQ_TYPE_EDGE_RISING>,
