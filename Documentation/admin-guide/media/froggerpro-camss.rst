@@ -14,8 +14,9 @@ SGM38120 camera PMIC. IMX355's initial chip-ID read timed out on CCI0 master
 0, queue 0. The CCI pinctrl states have since been moved from the I2C
 adapter nodes to their controller nodes so the platform probe selects them.
 The next boot log no longer reports the CCI timeout or IMX355 probe failure.
-IMX355 now probes and sends valid RAW10 packets through CSIPHY0, but raw
-capture still stalls before a buffer completes. The other physical sensors, C-PHY,
+IMX355 now probes and sends valid RAW10 packets through CSIPHY0. Initial raw
+captures stalled before a buffer completed; enabling the missing CAMNOC QDSS
+XO clock restored capture as described below. The other physical sensors, C-PHY,
 full TFE processing and ISP image processing are outside the initial
 support. The test generators can exercise CSID and VFE without a sensor;
 they do not exercise the external PHYs or CCI buses.
@@ -66,27 +67,54 @@ and submits RUP/AUP before configuring CSID. The Eliza stream-start change
 adds a path-only RUP after RDI configuration and before receiver setup.
 It deliberately leaves AUP clear to avoid submitting the initial buffer
 addresses a second time. This corrects the configuration-update ordering;
-it has not yet been tested at stream start on the phone and is not a
-confirmed remedy for the DMA stall. A path-only RUP issued after the stream
-had already stalled did not recover it.
+two TPG and two sensor-bar starts after installing the change and rebooting
+still timed out with empty files. It does not resolve the DMA stall by itself.
+A path-only RUP issued after the stream had already stalled did not recover it.
 
 CPAS identifies Titan 970 (camera version ``0x00090700``) and CPAS 1.1
 (``0x10010000``). During capture, its RT QCHANNEL control/status are
 ``0x1``/``0x4`` and its NRT control/status are ``0x1``/``0x0``. Downstream
 power-on waits for status bit 0 (QACCEPTN), which is clear in both samples.
-This is an additional interconnect bring-up lead, not proof that it causes
-the stall. Temporarily enabling the downstream CPAS NRT/SF clocks and
+Temporarily enabling the downstream CPAS NRT/SF clocks and
 applying its documented GCC camera AXI sleep-staging sequence did not
 change these status values or enable DMA. Those settings were restored
 and are not included in the driver change.
 
-Validate the stream-start change with matching CAMSS modules, first using
-TPG0 and then sensor color bars, retaining powered register snapshots for
-both. Repeat each stream start/stop. Ten TPG frames should dequeue and,
-with the negotiated 640-byte stride, total 3,072,000 bytes. Sensor capture
-must also dequeue buffers before optical capture or GNOME Camera can
-establish success. Neither a completed build nor a successful stream-on
-ioctl validates frame delivery.
+QDSS XO clock isolation on 2026-10-05
+-----------------------------------
+
+The reference CPAS device tree also enables ``CAM_CC_QDSS_DEBUG_XO_CLK``.
+Eliza CAMSS initially omitted this branch. During a stalled TPG capture,
+changing only its enable bit at CAMCC ``0x11348`` from zero to one immediately
+allowed all ten buffers to dequeue, producing 3,072,000 bytes. The same
+experiment restored IMX355 color-bar and optical capture at about 30 fps.
+Powered sensor snapshots changed RT/NRT QCHANNEL status from ``0x4``/``0x0``
+to ``0x5``/``0x1``: both QACCEPTN bits asserted, VFE reported EOF and its
+consumed address advanced. No AXI reset, NRT/SF clock override or additional
+RUP command was needed for this recovery.
+
+With QDSS XO enabled before stream-on, TPG0, sensor bars and optical capture
+each passed two consecutive starts. Each sensor run captured ten 3280 by 2464
+packed RAW10 frames with a 4112-byte stride, totalling 101,319,680 bytes.
+Unpacking a later sensor-bar frame showed the complete bar pattern. After
+uncovering the lens, two further optical starts succeeded and a decoded frame
+showed the illuminated scene. A first frame obtained by enabling the clock
+midstream was partial; use the normal driver clock lifetime for validation.
+All diagnostic clock enable bits were restored after these tests.
+
+The binding, device tree and Eliza VFE clock list now include ``qdss_debug_xo``.
+This keeps the clock enabled through the existing VFE power and clock cleanup
+paths, without making it permanently critical. The permanent driver and DTB
+combination still needs a boot test without register overrides. No new kernel,
+DTB or module was installed during the isolation tests, and GNOME Camera has
+not yet been retested with the permanent fix.
+
+Install the updated board DTB and matching CAMSS module, then repeat TPG0,
+sensor-bar and optical starts. Ten TPG frames should total 3,072,000 bytes at
+640-byte stride. Sensor runs should dequeue ten buffers with the negotiated
+frame size. Clear the sensor test pattern before testing GNOME Camera.
+Neither a completed build nor a successful stream-on ioctl validates frame
+delivery.
 
 Hardware information
 --------------------
@@ -111,6 +139,11 @@ Build and boot
 
 ``eliza_defconfig`` enables CAMCC built in and CAMSS, CCI, IMX355 and the
 SGM38120 camera PMIC as modules.
+The QDSS XO branch already exists in CAMCC, so the clock fix needs only a new
+CAMSS module and board DTB, not a rebuilt kernel image.
+The tested phone boots an Android header-v2 image containing the DTB. Repack
+that image with the updated DTB and its existing kernel and ramdisk before
+booting it; the standalone DTB used by an EFI loader is not the active path.
 With an existing configured output directory, object and DTB checks can
 be limited to the affected targets::
 
@@ -232,8 +265,8 @@ the board configuration already enables ``CONFIG_UDMABUF``.
 First capture using TPG0
 -----------------------
 
-The following test uses 640 by 480 RAW8 color bars on RDI0. It currently
-times out on FroggerPro as described above. Substitute the
+The following test uses 640 by 480 RAW8 color bars on RDI0. It times out
+without the CAMNOC QDSS XO clock as described above. Substitute the
 CAMSS media device for ``/dev/media0`` as needed::
 
     media-ctl -d /dev/media0 -r
