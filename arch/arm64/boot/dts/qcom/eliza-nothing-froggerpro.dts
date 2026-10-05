@@ -330,7 +330,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_ultrawide_default>;
 		orientation = <1>;
-		rotation = <90>;
+		rotation = <270>;
 
 		port {
 			imx355_ep: endpoint {
