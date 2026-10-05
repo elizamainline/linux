@@ -100,6 +100,16 @@
 		startup-delay-us = <233>;
 	};
 
+	cam_main_avdd: regulator-cam-main-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "cam-main-avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&tlmm 115 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		startup-delay-us = <233>;
+	};
+
 	wcn6750-pmu {
 		compatible = "qcom,wcn6755-pmu", "qcom,wcn6750-pmu";
 
@@ -318,6 +328,14 @@
 	};
 };
 
+&camss_port1 {
+	camss_main_ep: endpoint {
+		remote-endpoint = <&imx896_ep>;
+		bus-type = <1>;
+		data-lanes = <0 1 2>;
+	};
+};
+
 &camss_port2 {
 	camss_tele_ep: endpoint {
 		remote-endpoint = <&s5kjn5_ep>;
@@ -371,6 +389,33 @@
 
 &cci0_i2c1 {
 	status = "okay";
+
+	cam_main: camera@10 {
+		compatible = "sony,imx896";
+		reg = <0x10>;
+
+		clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK1_CLK>;
+		assigned-clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK1_CLK>;
+		assigned-clock-rates = <19200000>;
+		vana1-supply = <&cam_main_avdd1>;
+		vana2-supply = <&cam_main_avdd>;
+		vdig-supply = <&cam_main_dvdd>;
+		vif-supply = <&cam_ldo4>;
+		reset-gpios = <&tlmm 124 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_main_default>;
+		orientation = <1>;
+		rotation = <270>;
+
+		port {
+			imx896_ep: endpoint {
+				remote-endpoint = <&camss_main_ep>;
+				bus-type = <1>;
+				data-lanes = <1 2 3>;
+				link-frequencies = /bits/ 64 <987789474>;
+			};
+		};
+	};
 };
 
 &cci1 {
@@ -931,6 +976,23 @@
 		};
 	};
 
+	cam_main_default: cam-main-default-state {
+		mclk-pins {
+			pins = "gpio66";
+			function = "cam_mclk";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		reset-pins {
+			pins = "gpio124";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+	};
+
 	cam_ultrawide_default: cam-ultrawide-default-state {
 		mclk-pins {
 			pins = "gpio65";
@@ -1170,6 +1232,18 @@
 				regulator-name = "cam-front-dvdd";
 				regulator-min-microvolt = <1050000>;
 				regulator-max-microvolt = <1050000>;
+			};
+
+			cam_main_dvdd: ldo2 {
+				regulator-name = "cam-main-dvdd";
+				regulator-min-microvolt = <1104000>;
+				regulator-max-microvolt = <1104000>;
+			};
+
+			cam_main_avdd1: ldo3 {
+				regulator-name = "cam-main-avdd1";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 			};
 		};
 	};

@@ -4,14 +4,21 @@
 
 set -eu
 
+usage()
+{
+	echo "Usage: $0 MODE [output-directory]" >&2
+	echo 'Modes: imx355-bars, imx355, imx896-test, imx896, s5kkd1-bars, s5kkd1,' >&2
+	echo '       s5kjn5-bars, s5kjn5, tpg' >&2
+}
+
 mode=${1:-imx355-bars}
 if [ "$#" -gt 2 ]; then
-	echo "Usage: $0 [imx355-bars|imx355|s5kkd1-bars|s5kkd1|s5kjn5-bars|s5kjn5|tpg] [output-directory]" >&2
+	usage
 	exit 2
 fi
 case "$mode" in
-	imx355|imx355-bars|s5kkd1|s5kkd1-bars|s5kjn5|s5kjn5-bars|tpg) ;;
-	*) echo "Usage: $0 [imx355-bars|imx355|s5kkd1-bars|s5kkd1|s5kjn5-bars|s5kjn5|tpg] [output-directory]" >&2; exit 2 ;;
+	imx355|imx355-bars|imx896|imx896-test|s5kkd1|s5kkd1-bars|s5kjn5|s5kjn5-bars|tpg) ;;
+	*) usage; exit 2 ;;
 esac
 
 for tool in media-ctl v4l2-ctl timeout; do
@@ -90,6 +97,13 @@ else
 	width=3280
 	height=2464
 	case "$mode" in
+		imx896|imx896-test)
+			sensor_name=imx896
+			phy_entity=msm_csiphy1
+			size=4096x3072
+			width=4096
+			height=3072
+			;;
 		s5kkd1|s5kkd1-bars)
 			sensor_name=s5kkd1
 			phy_entity=msm_csiphy3
@@ -125,6 +139,7 @@ else
 	pattern=0
 	case "$mode" in
 		*-bars) pattern=2 ;;
+		imx896-test) pattern=1 ;;
 	esac
 	if [ "$sensor_name" = imx355 ]; then
 		run v4l2-ctl -d "$source_device" --set-ctrl=horizontal_flip=0,vertical_flip=0

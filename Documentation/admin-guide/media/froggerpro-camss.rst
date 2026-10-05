@@ -23,9 +23,9 @@ adapter nodes to their controller nodes so the platform probe selects them.
 The next boot log no longer reports the CCI timeout or IMX355 probe failure.
 IMX355 now probes and sends valid RAW10 packets through CSIPHY0. Initial raw
 captures stalled before a buffer completed; enabling the missing CAMNOC QDSS
-XO clock restored capture as described below. The rear main sensor,
-full TFE processing and ISP image processing are outside the initial
-support. The test generators can exercise CSID and VFE without a sensor;
+XO clock restored capture as described below. The IMX896 rear main sensor now has an initial driver and board wiring;
+its capture path still needs hardware validation. Full TFE processing and
+ISP image processing are outside the initial support. The test generators can exercise CSID and VFE without a sensor;
 they do not exercise the external PHYs or CCI buses.
 
 Hardware validation on 2026-10-04
@@ -160,7 +160,8 @@ ID ``0x1c00``. CCI buses use GPIO pairs 70/71, 72/73, 74/75 and 76/77.
 Build and boot
 --------------
 
-``eliza_defconfig`` enables CAMCC built in and CAMSS, CCI, IMX355, S5KKD1, S5KJN5,
+``eliza_defconfig`` enables CAMCC built in and CAMSS, CCI, IMX355, IMX896,
+S5KKD1, S5KJN5,
 SGM38120 and AW37004 as modules.
 The QDSS XO branch already exists in CAMCC, so the clock fix needs only a new
 CAMSS module and board DTB, not a rebuilt kernel image.
@@ -737,3 +738,107 @@ directory; no full kernel rebuild was performed for this correction.
 For future regression tests, check an asymmetric scene or readable text in
 both the preview and a saved photo. Confirm that left and right match the
 scene and that colors remain correct.
+
+IMX896 rear main camera
+----------------------
+
+Initial support uses the FroggerPro stock 4096 by 3072 RAW10 preview mode,
+with 2 by 2 binning across the 8192 by 6144 array. The driver checks chip ID
+``0x0896`` at register ``0x0016`` and accepts a 19.2 MHz input clock and three
+C-PHY trios. Exposure, analogue/digital gain, vertical blanking, a custom
+test pattern and firmware mounting controls are exposed through V4L2.
+The stock sensor library encodes analogue gain as
+``16384 / (16384 - register)`` with a 64x limit (register 16128).
+Userspace sensor helpers must use this conversion for automatic gain control.
+Normal readout is advertised as RGGB; Bayer order and mounting rotation
+need confirmation from captured frames. There is no autofocus or OIS driver
+for this module yet, so optical images may be out of focus.
+
+The stock Kera QRD overlay, slot ``qcom,cam-sensor0``, supplies the wiring:
+
+===================  ===============================================
+Resource             Assignment
+===================  ===============================================
+Control bus          CCI0, master 1, GPIO72/73, 7-bit address 0x10
+CSI receiver         CSIPHY1, three C-PHY trios
+Master clock         CAM BIST MCLK1, GPIO66, 19.2 MHz
+Reset                GPIO124, active low
+Analog power 1       AW37004 LDO3, 1.8 V
+Analog power 2       Fixed 2.8 V rail enabled by GPIO115
+Digital power        AW37004 LDO2, 1.104 V
+Interface power      SGM38120 LDO4, 1.8 V (shared with other cameras)
+===================  ===============================================
+
+Stock power-up enables analog 1, analog 2, digital and interface power in
+that order, with millisecond settling delays, then MCLK and reset release.
+The driver follows that sensor sequence and unwinds enabled rails on error.
+Stock additionally enables AW37004 LDO4 at 3.1 V through ``CUSTOM_REG2``;
+this rail and the SGM38120 LDO5 autofocus supply are left to future module
+actuator/OIS support. If chip identification fails, verify the four sensor
+rails and reset/MCLK before investigating that extra module supply.
+
+The initialization and mode sequences are extracted from the LineageOS
+``vendor/nothing/FroggerPro/proprietary/vendor/lib64/camera/`` file
+``com.qti.sensormodule.FroggerPro_shinetech_imx896_wide.bin``. Its SHA256 is
+``f035167e6276a25d16fa1eee1c6340bc4a740d53b93253cb89f595b4b3ba2067``.
+The parameter index spans offsets ``0x27c`` through ``0x2813c``, with
+16-byte little-endian ID/offset/length/type records. Payload offsets are
+relative to ``0x28174``. Parameter 7401 contains 473 initialization writes;
+parameter 688 contains the 133 writes for resolution index 1. Each write
+record has fourteen 32-bit words; its value and delay fields reference
+other parameters. All writes in these two lists are bytes without delays,
+and their ordering is preserved in the driver. No runtime firmware blob
+is required.
+
+The mode programs ``0x0111=3`` (C-PHY), ``0x0114=2`` (three trios), line
+length 11904 and frame length 3774. The output PLL uses a 19.2 MHz clock,
+predivider 19 and multiplier 1955, giving about 1.976 Gsymbols/s and a
+V4L2 link frequency of 987789474 Hz (half the symbol rate). The VT PLL
+programming gives a timing pixel rate of 1356800000 Hz, about 30.2 frames/s
+with the stock line and frame lengths. The stock ``outputPixelClock``
+metadata is a separate transport quantity and is not used for exposure
+or blanking timing. The stock mode also emits phase-detection data on VC2,
+data type ``0x30``; initial CAMSS capture selects the image on VC0/RAW10.
+The existing Eliza C-PHY profile covers the initial symbol rate.
+
+On 2026-10-05, targeted LLVM arm64 object/module and board DTB builds passed,
+as did binding/example and board schema validation. The register sequences
+were compared byte for byte with the stock lists. Capture helper routing,
+format and pattern commands passed mock checks for the new camera and the
+existing modes. These are build/static checks; no IMX896 hardware capture
+was performed.
+
+Use the existing output directory for targeted builds::
+
+    scripts/config --file /tmp/froggerpro-build/.config --module VIDEO_IMX896
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 olddefconfig
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        drivers/media/i2c/imx896.o qcom/eliza-nothing-froggerpro.dtb
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        M=drivers/media/i2c MO=/tmp/froggerpro-build/drivers/media/i2c imx896.ko
+
+The module-only invocation keeps artifacts under the existing output
+directory with ``MO`` and uses the full ``Module.symvers`` for
+V4L2/CCI/media dependencies. A direct ``drivers/media/i2c/imx896.ko`` target
+can report unresolved symbols from dependencies that are built as modules.
+These commands do not rebuild the kernel image. Repack the installed boot
+image with the new DTB and install the matching ``imx896.ko`` before testing.
+
+After reboot, load ``aw37004``, ``sgm38120``, ``i2c-qcom-cci``, ``imx896``
+and ``qcom-camss``, then inspect the media topology and deferred devices.
+Adding the main-camera endpoint makes CAMSS wait for IMX896 to bind; a
+missing module or failed probe can therefore prevent media registration.
+Run the helper after closing camera applications::
+
+    sudo sh froggerpro-capture.sh imx896-test
+    sudo sh froggerpro-capture.sh imx896
+
+The test mode selects the stock custom pattern (menu index 1, register
+``0x0600=5`` after ``0xa200=0``), whose content is not yet validated. Optical
+mode clears the pattern. Both modes route CSIPHY1 to RDI0 and request ten
+4096 by 3072 packed RGGB RAW10 frames. At a negotiated 5120-byte stride,
+ten frames total 157286400 bytes. Verify buffer completion, frame content,
+Bayer order, orientation and repeated stream starts; build success alone
+is not evidence that the camera captures. If capture fails, keep the
+helper's diagnostics and use the CAMSS register snapshot tool during the
+stream to distinguish receiver errors from a CSID/VFE DMA stall.
