@@ -66,7 +66,7 @@ properties:
 
           link-frequencies:
             items:
-              - const: 987789474
+              - const: 493894737
 
         required:
           - bus-type
@@ -112,7 +112,7 @@ examples:
                 endpoint {
                     bus-type = <1>;
                     data-lanes = <1 2 3>;
-                    link-frequencies = /bits/ 64 <987789474>;
+                    link-frequencies = /bits/ 64 <493894737>;
                     remote-endpoint = <&csiphy1_ep>;
                 };
             };
