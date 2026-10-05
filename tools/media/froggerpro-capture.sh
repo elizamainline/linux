@@ -6,12 +6,12 @@ set -eu
 
 mode=${1:-imx355-bars}
 if [ "$#" -gt 2 ]; then
-	echo "Usage: $0 [imx355-bars|imx355|s5kkd1-bars|s5kkd1|tpg] [output-directory]" >&2
+	echo "Usage: $0 [imx355-bars|imx355|s5kkd1-bars|s5kkd1|s5kjn5-bars|s5kjn5|tpg] [output-directory]" >&2
 	exit 2
 fi
 case "$mode" in
-	imx355|imx355-bars|s5kkd1|s5kkd1-bars|tpg) ;;
-	*) echo "Usage: $0 [imx355-bars|imx355|s5kkd1-bars|s5kkd1|tpg] [output-directory]" >&2; exit 2 ;;
+	imx355|imx355-bars|s5kkd1|s5kkd1-bars|s5kjn5|s5kjn5-bars|tpg) ;;
+	*) echo "Usage: $0 [imx355-bars|imx355|s5kkd1-bars|s5kkd1|s5kjn5-bars|s5kjn5|tpg] [output-directory]" >&2; exit 2 ;;
 esac
 
 for tool in media-ctl v4l2-ctl timeout; do
@@ -86,12 +86,24 @@ else
 	phy_entity=msm_csiphy0
 	bus_code=SRGGB10_1X10
 	pixel_format=pRAA
+	size=3280x2464
+	width=3280
+	height=2464
 	case "$mode" in
 		s5kkd1|s5kkd1-bars)
 			sensor_name=s5kkd1
 			phy_entity=msm_csiphy3
 			bus_code=SGRBG10_1X10
 			pixel_format=pgAA
+			;;
+		s5kjn5|s5kjn5-bars)
+			sensor_name=s5kjn5
+			phy_entity=msm_csiphy2
+			bus_code=SGBRG10_1X10
+			pixel_format=pGAA
+			size=4096x3072
+			width=4096
+			height=3072
 			;;
 	esac
 	source_entity=$(sed -n "s/.*entity [0-9]*: \($sensor_name [^ ]*\) (.*/\1/p" \
@@ -101,9 +113,6 @@ else
 		exit 1
 	fi
 	source_device=$(media-ctl -d "$media_device" -e "$source_entity")
-	size=3280x2464
-	width=3280
-	height=2464
 fi
 
 # Reset mutable links; the sensor-to-CSIPHY link is immutable and enabled.

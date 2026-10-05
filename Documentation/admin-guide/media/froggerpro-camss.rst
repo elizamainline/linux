@@ -10,6 +10,7 @@ The FroggerPro device tree enables these blocks, the CSI analog supplies
 and the Sony IMX355 ultrawide sensor using the existing mainline driver.
 The S5KKD1 front sensor and its AW37004 digital supply have initial drivers
 and board wiring. Front-camera capture works; image tuning remains to be done.
+The S5KJN5 telephoto sensor has an initial, unvalidated D-PHY configuration.
 
 The first device boot reached CAMSS entity registration and configured the
 SGM38120 camera PMIC. IMX355's initial chip-ID read timed out on CCI0 master
@@ -18,7 +19,7 @@ adapter nodes to their controller nodes so the platform probe selects them.
 The next boot log no longer reports the CCI timeout or IMX355 probe failure.
 IMX355 now probes and sends valid RAW10 packets through CSIPHY0. Initial raw
 captures stalled before a buffer completed; enabling the missing CAMNOC QDSS
-XO clock restored capture as described below. The rear main and telephoto sensors, C-PHY,
+XO clock restored capture as described below. The rear main sensor, C-PHY,
 full TFE processing and ISP image processing are outside the initial
 support. The test generators can exercise CSID and VFE without a sensor;
 they do not exercise the external PHYs or CCI buses.
@@ -155,7 +156,7 @@ ID ``0x1c00``. CCI buses use GPIO pairs 70/71, 72/73, 74/75 and 76/77.
 Build and boot
 --------------
 
-``eliza_defconfig`` enables CAMCC built in and CAMSS, CCI, IMX355, S5KKD1,
+``eliza_defconfig`` enables CAMCC built in and CAMSS, CCI, IMX355, S5KKD1, S5KJN5,
 SGM38120 and AW37004 as modules.
 The QDSS XO branch already exists in CAMCC, so the clock fix needs only a new
 CAMSS module and board DTB, not a rebuilt kernel image.
@@ -552,3 +553,100 @@ count, decode a later color-bar frame, then inspect an uncovered optical
 frame. Check that CSID CRC/ECC counters stay zero and that libcamera lists
 both cameras. Clear the test pattern before testing the front camera in
 GNOME Camera, and visually verify mounting rotation with the phone upright.
+
+S5KJN5 telephoto camera
+----------------------
+
+Initial support on 2026-10-05 imports Wenmeng Liu's `v5 binding
+<https://lore.kernel.org/r/20260928-sk5jn5-v5-1-19aa0a0a68eb@oss.qualcomm.com>`_
+and `v5 driver
+<https://lore.kernel.org/r/20260928-sk5jn5-v5-2-19aa0a0a68eb@oss.qualcomm.com>`_.
+The original authorship and register tables are preserved in separate commits.
+A follow-up adapts the pad callbacks to this tree's V4L2 API and acquires the
+module-dependent AF rail and the unused 1.2 V I/O rail as optional regulators.
+Missing optional rails are not replaced with dummy regulators; other regulator
+errors, including probe deferral, still propagate.
+
+The driver exposes one 4096 by 3072 RAW10 mode with GBRG output, four D-PHY
+data lanes and a 1.248 GHz link frequency. Exposure, analogue gain, digital
+gain, vertical blanking and test patterns are supported. Bayer order,
+orientation, timing, power sequencing and capture remain to be validated on
+FroggerPro. The initial rotation of 270 follows the corrected rear-camera
+mounting metadata used for IMX355; check an upright preview after capture works.
+
+The stock telephoto modes use three C-PHY lanes (``laneCount = 3``,
+``is3Phase = 1``). Both the imported sensor mode and Eliza's current receiver
+programming use D-PHY. The board node deliberately starts with the imported
+D-PHY mode as an experiment. Stock C-PHY configuration does not establish
+that the module's physical wiring carries all four D-PHY data lanes and the
+clock pair. A successful chip-ID read will establish control-bus access;
+it will not validate this CSI configuration. If probe succeeds but CSI packet
+reception fails, inspect lane wiring and implement the stock C-PHY mode and
+matching CSIPHY/CSID support before changing unrelated DMA settings.
+
+===================  ===============================================
+Resource             Assignment
+===================  ===============================================
+Control bus          CCI1, master 0, GPIO74/75
+I2C address          0x5a stock 8-bit address, 0x2d in Linux
+Identity             0x38e5 at 16-bit register 0x0000
+CSI receiver         CSIPHY2; initial four-lane D-PHY experiment
+Master clock         CAM BIST MCLK2, GPIO67, 19.2 MHz
+Reset                GPIO125, active low
+Digital power        SGM38120 LDO1, 1.0 V, core and MIPI
+Interface power      SGM38120 LDO4, 1.8 V, shared with other sensors
+Analog power         SGM38120 LDO3, 2.2 V
+===================  ===============================================
+
+Wiring comes from the LineageOS FroggerPro Kera QRD overlay (``dtbo.img``
+entry 49; equivalent UFS3 entry 46), slot ``qcom,cam-sensor3`` under CCI1.
+The sensor identity, address and C-PHY metadata come from::
+
+    vendor/nothing/FroggerPro/proprietary/vendor/lib64/camera/
+      com.qti.sensormodule.FroggerPro_qtech_s5kjn5_tele.bin
+
+The file's sensor parameter directory starts at ``0x27c`` and ends at
+``0x8d62c``; payload offsets are relative to ``0x8d664``. Its root slave
+information records address ``0x5a`` and identity ``0x38e5``. The supplied
+AAC v2 module uses the same sensor identity and address. The external
+DW9827C actuator, OIS, their 3.3 V rails and EEPROM are not driven by this
+initial sensor support. Optical focus and stabilization need separate work.
+
+Use the existing output directory for targeted validation::
+
+    scripts/config --file /tmp/froggerpro-build/.config --module VIDEO_S5KJN5
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 olddefconfig
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        KERNELRELEASE=7.3.0-rc6 W=1 drivers/media/i2c/s5kjn5.o
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        KERNELRELEASE=7.3.0-rc6 M=drivers/media/i2c \
+        MO=/tmp/froggerpro-build/drivers/media/i2c modules
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        DT_SCHEMA_FILES=media/i2c/samsung,s5kjn5.yaml CHECK_DTBS=y \
+        qcom/eliza-nothing-froggerpro.dtb
+
+Use ``KERNELRELEASE`` only when it matches the kernel on the phone. The
+module build needs the existing complete ``Module.symvers``. This procedure
+builds the enabled I2C sensor modules and the board DTB without rebuilding
+the kernel image or CAMSS. Repack the active boot image with the new DTB
+and its existing kernel and ramdisk, and install the new ``s5kjn5.ko``.
+The currently running tree lacks the sensor node; loading the module alone
+cannot create the endpoint. CAMSS waits for all enabled sensors to bind,
+so a failed telephoto probe can also prevent the other cameras from appearing.
+Keep the working boot image available for rollback.
+
+After booting the updated DTB, load ``s5kjn5`` and confirm that the topology
+contains ``s5kjn5 N-002d`` linked to ``msm_csiphy2``. Close camera applications,
+then collect sensor bars before optical frames::
+
+    sudo sh froggerpro-capture.sh s5kjn5-bars
+    sudo sh froggerpro-capture.sh s5kjn5
+
+The helper requests ten 4096 by 3072 packed GBRG RAW10 frames (``pGAA``)
+through RDI0 and saves the negotiated format, topology, IRQ counts and dmesg.
+At a 5120-byte stride, ten frames occupy 157,286,400 bytes. Confirm the
+negotiated stride rather than assuming this total. Repeat starts, inspect
+color-bar content and record CSI CRC/ECC counters. Neither successful builds,
+probe nor stream-on alone establishes working telephoto capture. Clear the
+sensor test pattern before trying a preview; libcamera gain conversion and
+sensor-specific image tuning may also need follow-up.
