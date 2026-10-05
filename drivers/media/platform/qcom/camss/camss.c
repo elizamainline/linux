@@ -3432,11 +3432,13 @@ static const struct camss_subdev_resources csid_res_eliza[] = {
 
 static const struct camss_subdev_resources vfe_res_eliza[] = {
 	{
+		/* CAMNOC needs QDSS XO even when tracing is disabled. */
 		.clock = { "gcc_axi_hf", "cpas_ahb", "cpas_fast_ahb",
-			   "camnoc_axi", "cpas_ife_lite", "vfe_lite_ahb", "vfe_lite" },
+			   "camnoc_axi", "cpas_ife_lite", "vfe_lite_ahb", "vfe_lite",
+			   "qdss_debug_xo" },
 		.clock_rate = { { 0 }, { 80000000 }, { 300000000 },
 				{ 300000000, 400000000 },
-				{ 0 }, { 0 }, { 400000000, 480000000 } },
+				{ 0 }, { 0 }, { 400000000, 480000000 }, { 0 } },
 		.reg = { "vfe_lite0" },
 		.interrupt = { "vfe_lite0" },
 		.vfe = {
