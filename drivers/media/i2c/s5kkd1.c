@@ -740,7 +740,7 @@ static int s5kkd1_set_fmt(struct v4l2_subdev *sd,
 	fmt->format = (struct v4l2_mbus_framefmt){
 		.width = S5KKD1_WIDTH,
 		.height = S5KKD1_HEIGHT,
-		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.field = V4L2_FIELD_NONE,
 		.colorspace = V4L2_COLORSPACE_RAW,
 		.xfer_func = V4L2_XFER_FUNC_NONE,
@@ -756,7 +756,7 @@ static int s5kkd1_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	if (code->pad || code->index)
 		return -EINVAL;
-	code->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	code->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	return 0;
 }
 
@@ -764,7 +764,7 @@ static int s5kkd1_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->pad || fse->index || fse->code != MEDIA_BUS_FMT_SRGGB10_1X10)
+	if (fse->pad || fse->index || fse->code != MEDIA_BUS_FMT_SGRBG10_1X10)
 		return -EINVAL;
 	fse->min_width = S5KKD1_WIDTH;
 	fse->max_width = S5KKD1_WIDTH;

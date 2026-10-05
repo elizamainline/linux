@@ -84,10 +84,14 @@ if [ "$mode" = tpg ]; then
 else
 	sensor_name=imx355
 	phy_entity=msm_csiphy0
+	bus_code=SRGGB10_1X10
+	pixel_format=pRAA
 	case "$mode" in
 		s5kkd1|s5kkd1-bars)
 			sensor_name=s5kkd1
 			phy_entity=msm_csiphy3
+			bus_code=SGRBG10_1X10
+			pixel_format=pgAA
 			;;
 	esac
 	source_entity=$(sed -n "s/.*entity [0-9]*: \($sensor_name [^ ]*\) (.*/\1/p" \
@@ -97,9 +101,7 @@ else
 		exit 1
 	fi
 	source_device=$(media-ctl -d "$media_device" -e "$source_entity")
-	bus_code=SRGGB10_1X10
 	size=3280x2464
-	pixel_format=pRAA
 	width=3280
 	height=2464
 fi
