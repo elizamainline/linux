@@ -977,6 +977,15 @@ config VIDEO_DW9807_VCM
 	  capability. This is designed for linear control of
 	  voice coil motors, controlled via I2C serial interface.
 
+config VIDEO_DW9827C
+	tristate "DW9827C closed-loop autofocus support"
+	select V4L2_CCI_I2C
+	help
+	  This is a V4L2 lens driver for the Dongwoon DW9827C closed-loop
+	  autofocus controller. It supports 12-bit focus positions over I2C.
+	  To compile this driver as a module, choose M here: the module
+	  will be called dw9827c.
+
 endif
 
 menu "Flash devices"
