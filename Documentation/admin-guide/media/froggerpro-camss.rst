@@ -163,6 +163,7 @@ Build and boot
 ``eliza_defconfig`` enables CAMCC built in and CAMSS, CCI, IMX355, IMX896,
 S5KKD1, S5KJN5,
 SGM38120 and AW37004 as modules.
+The camera EEPROMs use the AT24 module, also enabled by this configuration.
 The QDSS XO branch already exists in CAMCC, so the clock fix needs only a new
 CAMSS module and board DTB, not a rebuilt kernel image.
 The tested phone boots an Android header-v2 image containing the DTB. Repack
@@ -628,9 +629,9 @@ The file's sensor parameter directory starts at ``0x27c`` and ends at
 ``0x8d62c``; payload offsets are relative to ``0x8d664``. Its root slave
 information records address ``0x5a`` and identity ``0x38e5``. The supplied
 AAC v2 module uses the same sensor identity and address. The external
-DW9827C autofocus is supported separately as described below. OIS and EEPROM
-are not driven by this initial sensor support; stabilization needs separate
-work.
+DW9827C autofocus is supported separately as described below. The camera
+EEPROMs use the separate AT24 NVMEM driver described below. Calibration
+interpretation and OIS stabilization need separate work.
 
 Register provenance
 ~~~~~~~~~~~~~~~~~~~
@@ -1139,3 +1140,100 @@ analogue gain 15211, digital gain 256, vertical blanking 702 and test pattern
 0. WirePlumber was restarted. No driver changes or further reboot were
 needed. Capture files and traces are retained on the phone under
 ``/tmp/froggerpro-aw86016-hardware``.
+
+Camera EEPROMs
+--------------
+
+The board describes four external Puya EEPROMs as read-only NVMEM providers
+using the existing AT24 driver. The AT24 fallback compatibles select 16-bit
+register addresses, 8-bit data and the normal memory-array capacity:
+
+================== ======== ============== ============= ==============
+Camera             EEPROM   Control bus    7-bit address Array capacity
+================== ======== ============== ============= ==============
+Main (IMX896)      P24C128G CCI0, master 1 0x50          16384 bytes
+Tele (S5KJN5)      P24C256F CCI1, master 0 0x51          32768 bytes
+Front (S5KKD1)     P24U128B CCI1, master 1 0x52          16384 bytes
+Ultrawide (IMX355) P24U128B CCI0, master 0 0x53          16384 bytes
+================== ======== ============== ============= ==============
+
+Their NVMEM labels are ``cam-main-eeprom``, ``cam-tele-eeprom``,
+``cam-front-eeprom`` and ``cam-ultrawide-eeprom``. All four take their
+``vcc-supply`` from ``cam_ldo4``, SGM38120 LDO4 at 1.8 V. The DT
+``read-only`` property disables EEPROM writes through the NVMEM interface.
+The normal memory arrays are exposed; identification pages and unique
+serial-number areas are not described. No calibration cells or sensor
+consumers are added because the calibration layout remains userspace work.
+
+Wiring comes from the FroggerPro LineageOS ``dtbo.img`` entry 49 and the
+equivalent UFS3 entry 46. Identities and slave addresses come from the
+``EEPROMDriverData`` payloads in the vendor camera module binaries::
+
+    vendor/nothing/FroggerPro/proprietary/vendor/lib64/camera/
+      com.qti.sensormodule.FroggerPro_shinetech_imx896_wide.bin
+      com.qti.sensormodule.FroggerPro_qtech_s5kjn5_tele.bin
+      com.qti.sensormodule.FroggerPro_aac_s5kjn5_tele_v2.bin
+      com.qti.sensormodule.FroggerPro_qtech_s5kkd1_front.bin
+      com.qti.sensormodule.FroggerPro_qtech_imx355_uw.bin
+
+The corresponding payloads start at ``0x28578``, ``0x8d9b6`` (both
+telephoto variants), ``0x19700`` and ``0x72a6``. Their stock 8-bit write
+addresses are ``0xa0``, ``0xa2``, ``0xa4`` and ``0xa6``. Both telephoto
+module variants describe the same EEPROM model and bus address; they
+are alternatives for one camera slot.
+
+Each stock memory map contains one read operation at register zero with
+``regData = 0x3fff``, word register addressing and byte data. This stock
+calibration read does not establish the full physical capacity of the
+telephoto EEPROM; the 32 KiB array size follows the P24C256F specification.
+The EEPROM power sequences enable only ``SENSOR_VIO``; they do not enable
+the sensor MCLK or change its reset GPIO. AT24 manages the supply through
+runtime PM. Its I2C regmap uses the CCI adapter's 12-byte read limit to
+split larger reads.
+
+Build checks can be limited to the board DTB and AT24 module after enabling
+``CONFIG_EEPROM_AT24=m`` in the existing output configuration::
+
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        qcom/eliza-nothing-froggerpro.dtb
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        drivers/base/regmap/regmap-i2c.ko drivers/nvmem/at24.ko
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        dt_binding_check DT_SCHEMA_FILES=eeprom/at24.yaml
+
+Hardware validation on 2026-10-06
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After rebooting with these nodes, kernel ``7.3.0-rc6`` bound all four
+EEPROMs through AT24: ultrawide at ``4-0053``, main at ``5-0050``, telephoto
+at ``6-0051`` and front at ``7-0052``. The NVMEM files exposed the expected
+16 KiB or 32 KiB arrays with mode ``0400``. Testing used only read access
+to the EEPROMs; no write attempts or protection commands were issued.
+
+Three full-array reads per EEPROM returned identical SHA256 hashes.
+Fourteen additional reads per device matched the full dump across the
+12-byte CCI transfer boundary, 64/128/256-byte boundaries, the array
+midpoint and its final byte. Reading at the configured end returned EOF.
+All four dumps contained programmed data. The telephoto array's upper
+16 KiB contained data distinct from the lower half, supporting the full
+32 KiB capacity rather than a repeated 16 KiB window.
+
+Each camera completed 120 RAW10 buffers while a full read of its
+corresponding EEPROM matched the idle baseline. Ultrawide used its test
+pattern; main, telephoto and front used normal capture. The sensor was
+runtime-active throughout each concurrent read. An initial main-camera
+test-pattern capture timed out; camera-only captures and a repeat of the
+test-pattern capture with EEPROM access passed without driver changes.
+The initial timeout did not reproduce, and its cause is not established.
+
+Final full-array reads still matched the original dumps. Each EEPROM
+returned to runtime suspend, and the regulator summary showed its VCC
+consumer enable count at zero. No new kernel messages appeared during
+testing. Camera controls and the original media topology were restored,
+and WirePlumber was restarted. No new driver, kernel or DTB was installed
+during the tests. Calibration interpretation, identification pages and
+serial-number areas remain outside this validation.
+
+Logs, summaries and private EEPROM dumps are retained on the phone under
+``/tmp/froggerpro-eeprom-hardware.ketjdwd_``. A summary of the test results
+is retained locally under ``/tmp/froggerpro-eeprom-hardware``.
