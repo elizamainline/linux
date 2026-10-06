@@ -4419,6 +4419,13 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/pci/hws/
 
+AWINIC AW20144 MATRIX LED DRIVER
+M:	Oleksii Onchul <oleksiionchul@gmail.com>
+L:	linux-leds@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/leds/awinic,aw20144.yaml
+F:	drivers/leds/leds-aw20144.c
+
 AWINIC AW37004 REGULATOR DRIVER
 M:	Oleksii Onchul <oleksiionchul@gmail.com>
 S:	Maintained
