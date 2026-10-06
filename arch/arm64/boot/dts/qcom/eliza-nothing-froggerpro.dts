@@ -425,9 +425,17 @@
 &cci1_i2c0 {
 	status = "okay";
 
+	cam_tele_focus: lens@f {
+		compatible = "dongwoon,dw9827c";
+		reg = <0x0f>;
+		vdd-supply = <&cam_tele_af>;
+		vio-supply = <&cam_ldo4>;
+	};
+
 	cam_tele: camera@2d {
 		compatible = "samsung,s5kjn5";
 		reg = <0x2d>;
+		lens-focus = <&cam_tele_focus>;
 
 		clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK2_CLK>;
 		assigned-clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK2_CLK>;
@@ -1289,10 +1297,10 @@
 				regulator-max-microvolt = <3544000>;
 			};
 
-			ldo6 {
-				regulator-name = "cam-ldo6";
-				regulator-min-microvolt = <1504000>;
-				regulator-max-microvolt = <3544000>;
+			cam_tele_af: ldo6 {
+				regulator-name = "cam-tele-af";
+				regulator-min-microvolt = <3304000>;
+				regulator-max-microvolt = <3304000>;
 			};
 
 			cam_ldo7: ldo7 {

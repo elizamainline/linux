@@ -628,8 +628,9 @@ The file's sensor parameter directory starts at ``0x27c`` and ends at
 ``0x8d62c``; payload offsets are relative to ``0x8d664``. Its root slave
 information records address ``0x5a`` and identity ``0x38e5``. The supplied
 AAC v2 module uses the same sensor identity and address. The external
-DW9827C actuator, OIS, their 3.3 V rails and EEPROM are not driven by this
-initial sensor support. Optical focus and stabilization need separate work.
+DW9827C autofocus is supported separately as described below. OIS and EEPROM
+are not driven by this initial sensor support; stabilization needs separate
+work.
 
 Register provenance
 ~~~~~~~~~~~~~~~~~~~
@@ -908,3 +909,78 @@ For CAMSS-only builds with separately built videobuf2 modules, add::
     KBUILD_EXTRA_SYMBOLS=/tmp/froggerpro-build/drivers/media/common/videobuf2/Module.symvers
 
 This supplies their symbol exports to modpost without a full kernel rebuild.
+
+Telephoto autofocus: DW9827C
+---------------------------
+
+The Qtech and AAC v2 S5KJN5 modules both use a Dongwoon DW9827C closed-loop
+actuator. ``dw9827c`` exposes ``V4L2_CID_FOCUS_ABSOLUTE`` from 0 to 4095,
+with a default of 150 (the stock initial DAC code). This is manual lens
+position control; automatic scene-based focusing belongs in userspace.
+The factory Hall/PID calibration in on-chip NVM is retained.
+
+The stock module binaries are::
+
+    vendor/nothing/FroggerPro/proprietary/vendor/lib64/camera/
+      com.qti.sensormodule.FroggerPro_qtech_s5kjn5_tele.bin
+      com.qti.sensormodule.FroggerPro_aac_s5kjn5_tele_v2.bin
+
+Both actuator roots start at ``0x8dcba``. The parameter directory is the
+same as for the sensor, and the payload base is ``0x8d664``. Parameter 36121
+specifies byte register addressing, word data, register ``0x00`` and a
+four-bit left shift for the 12-bit DAC value. Parameter 36122 supplies
+``0x7c=0x00`` then ``0x02=0x40``; parameters 36134 and 36141 supply wake-up
+``0x02=0x00`` and standby ``0x02=0x40``, respectively, each with a 3000 us
+delay. The two variants have identical register and power sequences.
+
+DTBO entry 49 connects actuator slot 3 to CCI1/master 0, alongside the
+telephoto sensor. The stock 8-bit I2C address ``0x1e`` becomes Linux address
+``0x0f``. VIO uses SGM38120 LDO4 at 1.8 V; VAF uses LDO6 at 3.304 V, matching
+the stock target and the regulator's voltage steps. The power sequence
+enables VIO, waits 1 ms, enables VAF, then waits 5 ms. Shutdown enters
+standby for 3 ms before disabling VAF, waits 1 ms, then releases VIO.
+
+The camera's ``lens-focus`` reference makes V4L2 wait for the lens driver
+and creates an ancillary link from the sensor to the actuator. Load
+``dw9827c`` along with the camera modules. Without it, the new DT can leave
+CAMSS waiting for its telephoto lens dependency.
+
+Use the existing build directory for targeted builds::
+
+    scripts/config --file /tmp/froggerpro-build/.config --module VIDEO_DW9827C
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 olddefconfig
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        drivers/media/i2c/dw9827c.o qcom/eliza-nothing-froggerpro.dtb
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        M=drivers/media/i2c MO=/tmp/froggerpro-build/drivers/media/i2c dw9827c.ko
+
+The module's kernel release must match the running kernel when testing
+without reboot. These commands do not build the kernel image. Persistent
+integration requires installing the module and booting the updated board
+DTB, because the current kernel has no OF overlay support.
+
+After booting the updated DTB, find the ``dw9827c`` entity with
+``media-ctl -p`` and use its subdevice node. Keep it open throughout a focus
+comparison, so autosuspend does not enter standby between setting the
+position and capturing::
+
+    lens=/dev/v4l-subdevN  # Use the node reported for dw9827c.
+    exec 9<>"$lens"
+    v4l2-ctl -d "$lens" --list-ctrls
+    v4l2-ctl -d "$lens" --set-ctrl=focus_absolute=150
+    # Capture the telephoto optical stream while this descriptor stays open.
+    v4l2-ctl -d "$lens" --set-ctrl=focus_absolute=300
+    # Capture the same static scene again, then release the lens.
+    exec 9>&-
+
+The lens enters standby and releases its supply votes after one second
+without open handles. Controls changed while suspended are cached and
+restored at the next open. This support does not identify or operate the
+separate OIS controller.
+
+On 2026-10-06, the targeted LLVM arm64 module build (including ``W=1``),
+binding/example validation and board validation against the actuator and
+sensor schemas passed. The register encoding, startup/standby commands and
+power delays were compared against both stock variants. A host harness using
+the actual driver core also checked suspend/control behavior and injected
+I2C and regulator failures. Hardware focus validation remains pending.
