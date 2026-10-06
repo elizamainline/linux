@@ -768,6 +768,14 @@
 };
 
 &pmxr2230_gpios {
+	glyph_enable_default: glyph-enable-default-state {
+		pins = "gpio8";
+		function = PMIC_GPIO_FUNC_NORMAL;
+		bias-disable;
+		input-disable;
+		output-low;
+	};
+
 	uim1_level_shift_en_default: uim1-level-shift-en-default {
 		pins = "gpio2";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -1267,6 +1275,19 @@
 &i2c0 {
 	clock-frequency = <400000>;
 	status = "okay";
+
+	led-controller@20 {
+		compatible = "awinic,aw20144";
+		reg = <0x20>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-gpios = <&pmxr2230_gpios 8 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&glyph_enable_default>;
+		pinctrl-names = "default";
+		awinic,global-current = <13>;
+
+#include "eliza-nothing-froggerpro-glyph.dtsi"
+	};
 
 	pmic@28 {
 		compatible = "awinic,aw37004";
