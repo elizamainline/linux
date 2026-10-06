@@ -4425,6 +4425,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/regulator/awinic,aw37004.yaml
 F:	drivers/regulator/aw37004.c
 
+AWINIC AW86016CSR AUTOFOCUS DRIVER
+M:	Oleksii Onchul <oleksiionchul@gmail.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/awinic,aw86016.yaml
+F:	drivers/media/i2c/aw86016.c
+
 AWINIC AW99706 WLED BACKLIGHT DRIVER
 M:	Junjie Cao <junjie.cao@linux.dev>
 S:	Maintained
