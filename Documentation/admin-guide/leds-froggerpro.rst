@@ -19,10 +19,9 @@ The prebuilt device trees in the LineageOS source tree provide the wiring:
   ``&i2c0`` in the mainline tree.
 * ``device/nothing/FroggerPro/dtbo.img`` contains AW20144 nodes at both
   seven-bit addresses ``0x20`` and ``0x21`` on this bus. Both reference
-  PMXR2230 GPIO 8 as their enable line. The initial mainline device tree
-  selects ``0x20``. The address responding on this handset has not yet
-  been confirmed on mainline; do not instantiate both nodes together,
-  since they share the enable GPIO.
+  PMXR2230 GPIO 8 as their enable line. Hardware testing confirmed chip
+  ID ``0x74`` at ``0x21``; ``0x20`` NACKs. Mainline selects ``0x21``.
+  Do not instantiate both nodes together, since they share the enable GPIO.
 * The ``0x20`` node supplies GCCR value 13, channel scaling 255 and maximum
   brightness 255. The ``0x21`` node instead supplies GCCR value 20.
   These are register values, not current limits in microamps: the external
@@ -51,15 +50,19 @@ the channel map, reads the chip ID, resets the device and initializes all
 channels have scaling enabled. Channels 89, 90, 107, 108, 125, 126 and 143
 remain disabled.
 
-The global current register uses the downstream ``0x20`` setting of 13.
-All eight scan switches are active, and PWM runs at 62.5 kHz. Automatic
-breathing remains disabled after reset. The register layout comes from
+The global current register uses the downstream ``0x21`` setting of 20.
+All eight scan switches are active. ``awinic,pwm-frequency`` selects the
+nominal PWM clock in Hz; the default is 62500. FroggerPro selects 977 Hz,
+matching the vendor driver's PCCR value ``0xc0``. Automatic breathing
+remains disabled after reset. The register layout comes from
 the AW20144 datasheet and vendor driver; the upstream AW200xx driver has
 a different layout and cannot drive this device unchanged.
 
-Every page selection and LED write is serialized. I2C failures propagate
-to the caller, and the cached PWM value changes only after a successful
-write. System suspend drives EN low. Brightness changes during suspend
+Every page selection and LED write is serialized. The brightness callback
+returns I2C failures, and the driver's cached PWM value changes only after
+a successful write. The LED core queues sysfs writes and reports callback
+failures in the kernel log; a successful sysfs write is not an I2C completion
+notification. System suspend drives EN low. Brightness changes during suspend
 update the software cache; resume resets and restores both banks before
 enabling outputs. A failed resume leaves EN low, with subsequent writes
 cached for a later resume attempt. Driver removal, probe failure and
@@ -73,6 +76,12 @@ LED devices are named ``white:indicator-0`` through
 downstream pixel index, while each DT child's ``reg`` is its physical
 AW20144 channel. Brightness ranges from 0 to 255. LED directory enumeration
 order is not a pixel ordering; use the numeric suffix.
+
+Rapid updates may be coalesced by the LED core. During stress testing,
+its sysfs brightness cache could retain an earlier value even after the
+hardware had reached the final requested PWM value. Allow queued updates
+to settle before comparing values; use controller readback for diagnostics.
+Direct I2C diagnostics must also avoid racing the driver's page selections.
 
 The vendor frame API's integer values are narrowed to one byte before
 being written to PWM registers. This driver exposes the native eight-bit
@@ -100,11 +109,41 @@ kernel image.
 Validation status
 -----------------
 
-This is an initial implementation based on source and device-tree
-inspection. No hardware tests, module loading, flashing, I2C probing or
-LED writes were performed. Actual address, visible pixel order, brightness,
-GPIO voltage selection and suspend/resume behavior require future device
-validation.
+Hardware tests on 2026-10-06 used the connected handset running
+``7.3.0-rc6``. Its boot DT still described ``0x20``, so a temporary test
+module instantiated a client at ``0x21`` using the existing GPIO and pixel
+nodes. A secondary software node supplied the PWM frequency property;
+direct diagnostics supplied GCCR 20 while the boot DT still contained 13.
+The rebuilt driver was loaded without flashing or rebuilding the kernel
+image. Its temporary test copy omitted BTF metadata because the local
+build's base BTF differed from the running kernel.
+
+Hardware checks passed:
+
+* Chip ID ``0x74`` at ``0x21``; the initial ``0x20`` probe failed with
+  ``-ENXIO``. The driver registered 137 LED class devices.
+* Physical readback of all PWM and scaling registers, including the seven
+  unused channels, matched the DT map. Whole-panel PWM values 16, 64, 128
+  and 255 and an asymmetric 137-pixel frame reached the expected channels.
+* The operator confirmed visible illumination at PWM 192, GCCR 20 and
+  PCCR ``0xc0``, using both direct frame programming and standard sysfs
+  brightness writes. This verifies the stock combination, not the
+  independent effect of changing current or PWM frequency.
+* Four concurrent writers issued 400 updates and the final physical PWM
+  values matched their requests. The software timer trigger produced
+  physical PWM values 0 and 128.
+* A temporary test helper invoked only the driver's suspend/resume
+  callbacks while the phone remained awake. EN went low; brightness changes
+  left physical PWM unchanged during suspend. Resume restored the cached
+  PWM, scaling and selected frequency. This checks the driver callbacks,
+  not full system suspend or wakeup.
+* Unbind drove EN low and removed all pixel devices. Reprobe restored all
+  137 devices with zero PWM. There were no new runtime kernel errors.
+
+The test client and temporary module were removed after testing, and all
+pixels were left off. Deploy the corrected DTB and driver module for normal
+operation after reboot. Visible pixel order, calibrated brightness, actual
+GPIO voltage and full system suspend/resume remain unverified.
 
 Software checks on 2026-10-06 passed:
 
