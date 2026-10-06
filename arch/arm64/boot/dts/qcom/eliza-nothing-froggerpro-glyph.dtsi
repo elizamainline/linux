@@ -1,0 +1,1101 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Glyph pixels in the downstream frame order. The function enumerator is
+ * the pixel index; reg is the AW20144 channel wired to that pixel.
+ */
+
+		led@0 {
+			reg = <0>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <0>;
+			default-state = "off";
+		};
+
+		led@12 {
+			reg = <18>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <1>;
+			default-state = "off";
+		};
+
+		led@24 {
+			reg = <36>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <2>;
+			default-state = "off";
+		};
+
+		led@36 {
+			reg = <54>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <3>;
+			default-state = "off";
+		};
+
+		led@48 {
+			reg = <72>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <4>;
+			default-state = "off";
+		};
+
+		led@1 {
+			reg = <1>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <5>;
+			default-state = "off";
+		};
+
+		led@13 {
+			reg = <19>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <6>;
+			default-state = "off";
+		};
+
+		led@25 {
+			reg = <37>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <7>;
+			default-state = "off";
+		};
+
+		led@37 {
+			reg = <55>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <8>;
+			default-state = "off";
+		};
+
+		led@49 {
+			reg = <73>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <9>;
+			default-state = "off";
+		};
+
+		led@5b {
+			reg = <91>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <10>;
+			default-state = "off";
+		};
+
+		led@6d {
+			reg = <109>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <11>;
+			default-state = "off";
+		};
+
+		led@7f {
+			reg = <127>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <12>;
+			default-state = "off";
+		};
+
+		led@8e {
+			reg = <142>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <13>;
+			default-state = "off";
+		};
+
+		led@c {
+			reg = <12>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <14>;
+			default-state = "off";
+		};
+
+		led@2 {
+			reg = <2>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <15>;
+			default-state = "off";
+		};
+
+		led@14 {
+			reg = <20>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <16>;
+			default-state = "off";
+		};
+
+		led@26 {
+			reg = <38>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <17>;
+			default-state = "off";
+		};
+
+		led@38 {
+			reg = <56>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <18>;
+			default-state = "off";
+		};
+
+		led@4a {
+			reg = <74>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <19>;
+			default-state = "off";
+		};
+
+		led@5c {
+			reg = <92>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <20>;
+			default-state = "off";
+		};
+
+		led@6e {
+			reg = <110>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <21>;
+			default-state = "off";
+		};
+
+		led@80 {
+			reg = <128>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <22>;
+			default-state = "off";
+		};
+
+		led@7c {
+			reg = <124>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <23>;
+			default-state = "off";
+		};
+
+		led@6a {
+			reg = <106>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <24>;
+			default-state = "off";
+		};
+
+		led@1e {
+			reg = <30>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <25>;
+			default-state = "off";
+		};
+
+		led@3 {
+			reg = <3>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <26>;
+			default-state = "off";
+		};
+
+		led@15 {
+			reg = <21>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <27>;
+			default-state = "off";
+		};
+
+		led@27 {
+			reg = <39>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <28>;
+			default-state = "off";
+		};
+
+		led@39 {
+			reg = <57>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <29>;
+			default-state = "off";
+		};
+
+		led@4b {
+			reg = <75>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <30>;
+			default-state = "off";
+		};
+
+		led@5d {
+			reg = <93>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <31>;
+			default-state = "off";
+		};
+
+		led@6f {
+			reg = <111>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <32>;
+			default-state = "off";
+		};
+
+		led@81 {
+			reg = <129>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <33>;
+			default-state = "off";
+		};
+
+		led@8c {
+			reg = <140>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <34>;
+			default-state = "off";
+		};
+
+		led@8d {
+			reg = <141>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <35>;
+			default-state = "off";
+		};
+
+		led@d {
+			reg = <13>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <36>;
+			default-state = "off";
+		};
+
+		led@30 {
+			reg = <48>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <37>;
+			default-state = "off";
+		};
+
+		led@4 {
+			reg = <4>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <38>;
+			default-state = "off";
+		};
+
+		led@16 {
+			reg = <22>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <39>;
+			default-state = "off";
+		};
+
+		led@28 {
+			reg = <40>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <40>;
+			default-state = "off";
+		};
+
+		led@3a {
+			reg = <58>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <41>;
+			default-state = "off";
+		};
+
+		led@4c {
+			reg = <76>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <42>;
+			default-state = "off";
+		};
+
+		led@5e {
+			reg = <94>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <43>;
+			default-state = "off";
+		};
+
+		led@70 {
+			reg = <112>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <44>;
+			default-state = "off";
+		};
+
+		led@82 {
+			reg = <130>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <45>;
+			default-state = "off";
+		};
+
+		led@7a {
+			reg = <122>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <46>;
+			default-state = "off";
+		};
+
+		led@7b {
+			reg = <123>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <47>;
+			default-state = "off";
+		};
+
+		led@58 {
+			reg = <88>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <48>;
+			default-state = "off";
+		};
+
+		led@1f {
+			reg = <31>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <49>;
+			default-state = "off";
+		};
+
+		led@42 {
+			reg = <66>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <50>;
+			default-state = "off";
+		};
+
+		led@5 {
+			reg = <5>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <51>;
+			default-state = "off";
+		};
+
+		led@17 {
+			reg = <23>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <52>;
+			default-state = "off";
+		};
+
+		led@29 {
+			reg = <41>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <53>;
+			default-state = "off";
+		};
+
+		led@3b {
+			reg = <59>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <54>;
+			default-state = "off";
+		};
+
+		led@4d {
+			reg = <77>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <55>;
+			default-state = "off";
+		};
+
+		led@5f {
+			reg = <95>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <56>;
+			default-state = "off";
+		};
+
+		led@71 {
+			reg = <113>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <57>;
+			default-state = "off";
+		};
+
+		led@83 {
+			reg = <131>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <58>;
+			default-state = "off";
+		};
+
+		led@68 {
+			reg = <104>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <59>;
+			default-state = "off";
+		};
+
+		led@69 {
+			reg = <105>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <60>;
+			default-state = "off";
+		};
+
+		led@46 {
+			reg = <70>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <61>;
+			default-state = "off";
+		};
+
+		led@31 {
+			reg = <49>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <62>;
+			default-state = "off";
+		};
+
+		led@54 {
+			reg = <84>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <63>;
+			default-state = "off";
+		};
+
+		led@6 {
+			reg = <6>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <64>;
+			default-state = "off";
+		};
+
+		led@18 {
+			reg = <24>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <65>;
+			default-state = "off";
+		};
+
+		led@2a {
+			reg = <42>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <66>;
+			default-state = "off";
+		};
+
+		led@3c {
+			reg = <60>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <67>;
+			default-state = "off";
+		};
+
+		led@4e {
+			reg = <78>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <68>;
+			default-state = "off";
+		};
+
+		led@60 {
+			reg = <96>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <69>;
+			default-state = "off";
+		};
+
+		led@72 {
+			reg = <114>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <70>;
+			default-state = "off";
+		};
+
+		led@84 {
+			reg = <132>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <71>;
+			default-state = "off";
+		};
+
+		led@56 {
+			reg = <86>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <72>;
+			default-state = "off";
+		};
+
+		led@57 {
+			reg = <87>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <73>;
+			default-state = "off";
+		};
+
+		led@34 {
+			reg = <52>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <74>;
+			default-state = "off";
+		};
+
+		led@43 {
+			reg = <67>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <75>;
+			default-state = "off";
+		};
+
+		led@66 {
+			reg = <102>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <76>;
+			default-state = "off";
+		};
+
+		led@7 {
+			reg = <7>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <77>;
+			default-state = "off";
+		};
+
+		led@19 {
+			reg = <25>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <78>;
+			default-state = "off";
+		};
+
+		led@2b {
+			reg = <43>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <79>;
+			default-state = "off";
+		};
+
+		led@3d {
+			reg = <61>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <80>;
+			default-state = "off";
+		};
+
+		led@4f {
+			reg = <79>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <81>;
+			default-state = "off";
+		};
+
+		led@61 {
+			reg = <97>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <82>;
+			default-state = "off";
+		};
+
+		led@73 {
+			reg = <115>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <83>;
+			default-state = "off";
+		};
+
+		led@85 {
+			reg = <133>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <84>;
+			default-state = "off";
+		};
+
+		led@44 {
+			reg = <68>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <85>;
+			default-state = "off";
+		};
+
+		led@45 {
+			reg = <69>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <86>;
+			default-state = "off";
+		};
+
+		led@22 {
+			reg = <34>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <87>;
+			default-state = "off";
+		};
+
+		led@55 {
+			reg = <85>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <88>;
+			default-state = "off";
+		};
+
+		led@78 {
+			reg = <120>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <89>;
+			default-state = "off";
+		};
+
+		led@8 {
+			reg = <8>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <90>;
+			default-state = "off";
+		};
+
+		led@1a {
+			reg = <26>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <91>;
+			default-state = "off";
+		};
+
+		led@2c {
+			reg = <44>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <92>;
+			default-state = "off";
+		};
+
+		led@3e {
+			reg = <62>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <93>;
+			default-state = "off";
+		};
+
+		led@50 {
+			reg = <80>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <94>;
+			default-state = "off";
+		};
+
+		led@62 {
+			reg = <98>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <95>;
+			default-state = "off";
+		};
+
+		led@74 {
+			reg = <116>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <96>;
+			default-state = "off";
+		};
+
+		led@86 {
+			reg = <134>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <97>;
+			default-state = "off";
+		};
+
+		led@32 {
+			reg = <50>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <98>;
+			default-state = "off";
+		};
+
+		led@33 {
+			reg = <51>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <99>;
+			default-state = "off";
+		};
+
+		led@10 {
+			reg = <16>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <100>;
+			default-state = "off";
+		};
+
+		led@8a {
+			reg = <138>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <101>;
+			default-state = "off";
+		};
+
+		led@9 {
+			reg = <9>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <102>;
+			default-state = "off";
+		};
+
+		led@1b {
+			reg = <27>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <103>;
+			default-state = "off";
+		};
+
+		led@2d {
+			reg = <45>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <104>;
+			default-state = "off";
+		};
+
+		led@3f {
+			reg = <63>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <105>;
+			default-state = "off";
+		};
+
+		led@51 {
+			reg = <81>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <106>;
+			default-state = "off";
+		};
+
+		led@63 {
+			reg = <99>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <107>;
+			default-state = "off";
+		};
+
+		led@75 {
+			reg = <117>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <108>;
+			default-state = "off";
+		};
+
+		led@87 {
+			reg = <135>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <109>;
+			default-state = "off";
+		};
+
+		led@20 {
+			reg = <32>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <110>;
+			default-state = "off";
+		};
+
+		led@21 {
+			reg = <33>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <111>;
+			default-state = "off";
+		};
+
+		led@8b {
+			reg = <139>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <112>;
+			default-state = "off";
+		};
+
+		led@a {
+			reg = <10>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <113>;
+			default-state = "off";
+		};
+
+		led@1c {
+			reg = <28>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <114>;
+			default-state = "off";
+		};
+
+		led@2e {
+			reg = <46>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <115>;
+			default-state = "off";
+		};
+
+		led@40 {
+			reg = <64>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <116>;
+			default-state = "off";
+		};
+
+		led@52 {
+			reg = <82>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <117>;
+			default-state = "off";
+		};
+
+		led@64 {
+			reg = <100>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <118>;
+			default-state = "off";
+		};
+
+		led@76 {
+			reg = <118>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <119>;
+			default-state = "off";
+		};
+
+		led@88 {
+			reg = <136>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <120>;
+			default-state = "off";
+		};
+
+		led@e {
+			reg = <14>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <121>;
+			default-state = "off";
+		};
+
+		led@f {
+			reg = <15>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <122>;
+			default-state = "off";
+		};
+
+		led@79 {
+			reg = <121>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <123>;
+			default-state = "off";
+		};
+
+		led@b {
+			reg = <11>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <124>;
+			default-state = "off";
+		};
+
+		led@1d {
+			reg = <29>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <125>;
+			default-state = "off";
+		};
+
+		led@2f {
+			reg = <47>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <126>;
+			default-state = "off";
+		};
+
+		led@41 {
+			reg = <65>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <127>;
+			default-state = "off";
+		};
+
+		led@53 {
+			reg = <83>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <128>;
+			default-state = "off";
+		};
+
+		led@65 {
+			reg = <101>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <129>;
+			default-state = "off";
+		};
+
+		led@77 {
+			reg = <119>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <130>;
+			default-state = "off";
+		};
+
+		led@89 {
+			reg = <137>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <131>;
+			default-state = "off";
+		};
+
+		led@67 {
+			reg = <103>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <132>;
+			default-state = "off";
+		};
+
+		led@11 {
+			reg = <17>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <133>;
+			default-state = "off";
+		};
+
+		led@23 {
+			reg = <35>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <134>;
+			default-state = "off";
+		};
+
+		led@35 {
+			reg = <53>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <135>;
+			default-state = "off";
+		};
+
+		led@47 {
+			reg = <71>;
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <136>;
+			default-state = "off";
+		};
