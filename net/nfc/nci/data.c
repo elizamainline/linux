@@ -53,6 +53,10 @@ void nci_data_exchange_complete(struct nci_dev *ndev, struct sk_buff *skb,
 	}
 
 	if (cb) {
+		if (err) {
+			kfree_skb(skb);
+			skb = NULL;
+		}
 		/* forward skb to nfc core */
 		cb(cb_context, skb, err);
 	} else if (skb) {
@@ -213,7 +217,7 @@ EXPORT_SYMBOL(nci_send_data);
 
 static void nci_add_rx_data_frag(struct nci_dev *ndev,
 				 struct sk_buff *skb,
-				 __u8 pbf, __u8 conn_id, __u8 status)
+				 __u8 pbf, __u8 conn_id, int status)
 {
 	int reassembly_len;
 	int err = 0;
