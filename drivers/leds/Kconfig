@@ -148,6 +148,18 @@ config LEDS_AW2013
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-aw2013.
 
+config LEDS_AW20144
+	tristate "LED support for Awinic AW20144"
+	depends on LEDS_CLASS
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This option enables support for the Awinic AW20144 144-channel
+	  I2C matrix LED controller, including individual LED brightness.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-aw20144.
+
 config LEDS_BCM6328
 	tristate "LED Support for Broadcom BCM6328"
 	depends on LEDS_CLASS
