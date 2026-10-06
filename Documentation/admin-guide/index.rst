@@ -154,6 +154,7 @@ How to configure your hardware within your Linux system.
    laptops/index
    lcd-panel-cgram
    media/index
+   nfc-froggerpro
    nvme-multipath
    parport
    pnp
