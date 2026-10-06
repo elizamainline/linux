@@ -154,6 +154,7 @@ How to configure your hardware within your Linux system.
    hw_random
    laptops/index
    lcd-panel-cgram
+   leds-froggerpro
    media/index
    nfc-froggerpro
    nvme-multipath
