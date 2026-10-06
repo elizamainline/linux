@@ -752,8 +752,9 @@ The stock sensor library encodes analogue gain as
 ``16384 / (16384 - register)`` with a 64x limit (register 16128).
 Userspace sensor helpers must use this conversion for automatic gain control.
 Normal readout is RGGB, verified by the captured color-bar sequence.
-Mounting rotation still needs confirmation from an optical scene. There is no autofocus or OIS driver
-for this module yet, so optical images may be out of focus.
+Mounting rotation still needs confirmation from an optical scene. AW86016CSR
+lens control is supported separately as described below; OIS remains
+unsupported.
 
 The stock Kera QRD overlay, slot ``qcom,cam-sensor0``, supplies the wiring:
 
@@ -774,9 +775,9 @@ Stock power-up enables analog 1, analog 2, digital and interface power in
 that order, with millisecond settling delays, then MCLK and reset release.
 The driver follows that sensor sequence and unwinds enabled rails on error.
 Stock additionally enables AW37004 LDO4 at 3.1 V through ``CUSTOM_REG2``;
-this rail and the SGM38120 LDO5 autofocus supply are left to future module
-actuator/OIS support. If chip identification fails, verify the four sensor
-rails and reset/MCLK before investigating that extra module supply.
+this rail remains reserved for future OIS support. The AW86016CSR driver
+uses SGM38120 LDO5 for autofocus. If chip identification fails, verify the
+four sensor rails and reset/MCLK before investigating the extra OIS supply.
 
 The initialization and mode sequences are extracted from the LineageOS
 ``vendor/nothing/FroggerPro/proprietary/vendor/lib64/camera/`` file
@@ -1023,3 +1024,80 @@ a calibrated focus-distance scale. Each position again produced three
 complete buffers at about 30 fps, and no actuator errors or kernel faults
 were logged. The tests restored focus 150, the original exposure/gain
 settings and the running WirePlumber service.
+
+
+Main-camera autofocus: AW86016CSR
+---------------------------------
+
+The Shinetech IMX896 wide module uses an Awinic AW86016CSR bidirectional
+voice coil motor controller. ``aw86016`` exposes raw 10-bit DAC codes through
+``V4L2_CID_FOCUS_ABSOLUTE`` from 0 to 1023, with default 40, the stock
+initial code. These codes are not calibrated focus distances. Scene-based
+autofocus and EEPROM calibration remain userspace work; OIS is separate.
+The driver does not alter the controller's factory eNVM configuration.
+
+Register programming comes from::
+
+    vendor/nothing/FroggerPro/proprietary/vendor/lib64/camera/
+      com.qti.sensormodule.FroggerPro_shinetech_imx896_wide.bin
+
+The binary's SHA-256 is
+``f035167e6276a25d16fa1eee1c6340bc4a740d53b93253cb89f595b4b3ba2067``.
+Its actuator root begins at ``0x287ca``; parameter records occupy
+``0x27c..0x2813c`` and the payload base is ``0x28174``. Parameter 10166
+specifies byte register addressing, word DAC data, register ``0x03`` and
+no shift. The driver writes the DAC as a big-endian word to ``0x03..0x04``.
+
+Parameter 10167 initializes ``0x02=0x01`` (wait 1 ms), ``0x02=0x02``,
+``0x06=0x40``, ``0x07=0x78`` (wait 1 ms), then ``0x03=0x02``,
+``0x04=0x00`` (wait 1 ms). Parameter 10199 wakes the controller with
+``0x02=0x02`` and a 3 ms wait; parameter 10206 powers it down with
+``0x02=0x01`` and the same wait. The driver reproduces these sequences
+before restoring the requested DAC code. Parameter 10164 enables VAF
+and waits 10 ms; parameter 10165 disables VAF with a 1 ms wait.
+
+DTBO entry 49 connects actuator slot 0 to CCI0/master 1, alongside IMX896.
+The stock 8-bit I2C address ``0x18`` becomes Linux address ``0x0c``. The VAF
+supply is SGM38120 LDO5 at 3.104 V, matching the stock voltage and a
+representable regulator step. The driver also holds a vote on shared LDO4
+at 1.8 V for the camera I2C interface, as the telephoto lens driver does,
+so it can be opened independently of the sensor. The stock actuator power
+sequence itself lists only VAF. Release the interface vote after VAF.
+
+The IMX896 ``lens-focus`` reference creates an ancillary link and makes
+sensor registration wait for the actuator. Install and load ``aw86016``
+alongside ``imx896`` when booting the updated DTB, or CAMSS may wait for
+its lens dependency. The module uses runtime PM, caches controls while
+suspended, restores them on open and powers down after one second without
+open handles. WirePlumber can keep the lens open through its libcamera
+monitor, as described for the telephoto actuator above.
+
+Build only the new module and board DTB using the existing output tree::
+
+    scripts/config --file /tmp/froggerpro-build/.config --module VIDEO_AW86016
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 olddefconfig
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        drivers/media/i2c/aw86016.o qcom/eliza-nothing-froggerpro.dtb
+    make LLVM=1 ARCH=arm64 O=/tmp/froggerpro-build -j24 \
+        M=drivers/media/i2c MO=/tmp/froggerpro-build/drivers/media/i2c aw86016.ko
+
+After applying the changes and rebooting, locate the ``aw86016`` lens
+subdevice in the media topology. Keep it open during optical comparisons::
+
+    lens=/dev/v4l-subdevN  # Use the node reported for aw86016.
+    exec 9<>"$lens"
+    v4l2-ctl -d "$lens" --list-ctrls
+    v4l2-ctl -d "$lens" --set-ctrl=focus_absolute=40
+    # Capture the main camera against a stationary, well-lit subject.
+    v4l2-ctl -d "$lens" --set-ctrl=focus_absolute=300
+    # Capture the same scene again, then release the lens.
+    exec 9>&-
+
+On 2026-10-06, targeted LLVM arm64 object/module builds with ``W=1``,
+binding/example validation and board validation against the actuator and
+IMX896 schemas passed. A host harness using the driver core checked the
+stock-derived register sequence and delays, DAC endpoints, cached focus,
+PM reference balance, each startup I2C failure, regulator failures and
+supply-vote balance on retry. These checks do not establish physical lens
+movement. Hardware validation is pending application of these commits
+and a reboot; this implementation has not yet been tested on the phone.

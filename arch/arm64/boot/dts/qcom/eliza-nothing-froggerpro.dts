@@ -390,9 +390,17 @@
 &cci0_i2c1 {
 	status = "okay";
 
+	cam_main_focus: lens@c {
+		compatible = "awinic,aw86016";
+		reg = <0x0c>;
+		vdd-supply = <&cam_main_af>;
+		vio-supply = <&cam_ldo4>;
+	};
+
 	cam_main: camera@10 {
 		compatible = "sony,imx896";
 		reg = <0x10>;
+		lens-focus = <&cam_main_focus>;
 
 		clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK1_CLK>;
 		assigned-clocks = <&cambistmclkcc CAM_BIST_MCLK_CC_MCLK1_CLK>;
@@ -1291,10 +1299,10 @@
 				regulator-max-microvolt = <1800000>;
 			};
 
-			ldo5 {
-				regulator-name = "cam-ldo5";
-				regulator-min-microvolt = <1504000>;
-				regulator-max-microvolt = <3544000>;
+			cam_main_af: ldo5 {
+				regulator-name = "cam-main-af";
+				regulator-min-microvolt = <3104000>;
+				regulator-max-microvolt = <3104000>;
 			};
 
 			cam_tele_af: ldo6 {
