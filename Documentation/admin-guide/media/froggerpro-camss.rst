@@ -1098,6 +1098,44 @@ binding/example validation and board validation against the actuator and
 IMX896 schemas passed. A host harness using the driver core checked the
 stock-derived register sequence and delays, DAC endpoints, cached focus,
 PM reference balance, each startup I2C failure, regulator failures and
-supply-vote balance on retry. These checks do not establish physical lens
-movement. Hardware validation is pending application of these commits
-and a reboot; this implementation has not yet been tested on the phone.
+supply-vote balance on retry. These host checks do not establish physical
+lens movement; hardware results follow.
+
+After booting kernel ``7.3.0-rc6 #50`` with the updated DTB on the same day,
+``aw86016`` bound at ``5-000c`` and exposed focus range 0 to 1023 with
+default 40. ``MEDIA_IOC_G_TOPOLOGY`` reported an enabled, immutable
+ancillary link from ``imx896 5-0010`` to ``aw86016 5-000c``. The legacy
+``media-ctl`` topology display omits this link, as with the telephoto lens.
+
+Register readback at ``0x03..0x04`` matched positions 40, 150, 300, 450,
+600 and 750 exactly: ``0x0028``, ``0x0096``, ``0x012c``, ``0x01c2``,
+``0x0258`` and ``0x02ee``. The control register read ``0x02`` while active.
+Regmap and regulator traces verified seven complete initialization
+sequences, the stock minimum delays, restoration of cached focus 300 on
+reopen, and power-down before releasing VAF and then the interface rail.
+Five additional open/close cycles returned to runtime suspend with both
+actuator supply votes at zero. WirePlumber was stopped temporarily so
+its libcamera monitor did not keep the lens open.
+
+Six optical captures at positions 40, 200, 400, 600, 800 and 40 used a
+stationary phone as the subject, fixed exposure 1000, analogue gain 8192
+(2x) and digital gain 256 (1x). The lens remained open throughout the
+comparison and was moved in steps of at most 32 codes with 30 ms waits.
+Each capture and a subsequent color-bar test returned three complete
+4096 by 3072 packed RAW10 frames, 15728640 bytes per frame, at about 30 fps.
+Color bars decoded correctly as RGGB.
+
+The optical RAW images were dark, so the previews used the same black-level
+subtraction and brightness/gamma adjustment for all positions. The phone
+and table grain were visibly sharpest around code 400 among the sampled
+positions. Codes 40, 600 and 800 were blurred, and returning to 40 restored
+the original blur. This confirms physical lens movement and working manual
+focus; it does not calibrate focus distance or provide a userspace autofocus
+algorithm.
+
+No new actuator errors, I2C failures or kernel faults were logged during
+these tests. The original controls were restored: focus 40, exposure 3710,
+analogue gain 15211, digital gain 256, vertical blanking 702 and test pattern
+0. WirePlumber was restarted. No driver changes or further reboot were
+needed. Capture files and traces are retained on the phone under
+``/tmp/froggerpro-aw86016-hardware``.
