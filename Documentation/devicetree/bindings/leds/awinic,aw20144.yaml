@@ -42,6 +42,12 @@ properties:
       current in microamps. Select a value appropriate for the board's
       resistor and LEDs.
 
+  awinic,pwm-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [62500, 31250, 15600, 7800, 3900, 1950, 977, 488]
+    default: 62500
+    description: Nominal PWM clock frequency in Hz, selected for the LED panel.
+
 patternProperties:
   "^led@[0-9a-f]+$":
     type: object
