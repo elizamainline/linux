@@ -5,6 +5,7 @@
  * Nothing's GPL-licensed drivers/leds/aw20144/leds-aw20144.c.
  */
 
+#include <linux/array_size.h>
 #include <linux/bitmap.h>
 #include <linux/container_of.h>
 #include <linux/delay.h>
@@ -26,6 +27,7 @@
 #define AW20144_GCR_CHIPEN	BIT(0)
 #define AW20144_REG_GCCR		0x01
 #define AW20144_REG_PCCR		0x29
+#define AW20144_PWMFRQ_SHIFT	5
 #define AW20144_REG_RSTN		0x2f
 #define AW20144_RESET		0xae
 #define AW20144_CHIP_ID		0x74
@@ -34,6 +36,10 @@
 #define AW20144_PAGE_CONTROL	0xc0
 #define AW20144_PAGE_PWM		0xc1
 #define AW20144_PAGE_SCALING	0xc2
+
+static const u32 aw20144_pwm_frequencies[] = {
+	62500, 31250, 15600, 7800, 3900, 1950, 977, 488,
+};
 
 struct aw20144;
 
@@ -51,6 +57,7 @@ struct aw20144 {
 	u8 pwm[AW20144_NUM_CHANNELS];
 	u8 scaling[AW20144_NUM_CHANNELS];
 	u8 global_current;
+	u8 pwm_freq;
 	bool suspended;
 	unsigned int num_leds;
 	struct aw20144_led leds[] __counted_by(num_leds);
@@ -113,8 +120,9 @@ static int aw20144_init(struct aw20144 *chip)
 	if (ret)
 		return ret;
 
-	/* 62.5 kHz PWM, independent per-channel brightness. */
-	ret = regmap_write(chip->regmap, AW20144_REG_PCCR, 0);
+	/* Board-selected PWM clock, independent per-channel brightness. */
+	ret = regmap_write(chip->regmap, AW20144_REG_PCCR,
+			   chip->pwm_freq << AW20144_PWMFRQ_SHIFT);
 	if (ret)
 		return ret;
 
@@ -164,6 +172,7 @@ static int aw20144_probe(struct i2c_client *client)
 	unsigned int num_leds, id, i = 0;
 	struct aw20144 *chip;
 	u32 global_current;
+	u32 pwm_frequency = aw20144_pwm_frequencies[0];
 	int ret;
 
 	num_leds = device_get_child_node_count(dev);
@@ -180,6 +189,20 @@ static int aw20144_probe(struct i2c_client *client)
 
 	chip->num_leds = num_leds;
 	chip->global_current = global_current;
+	if (device_property_present(dev, "awinic,pwm-frequency")) {
+		ret = device_property_read_u32(dev, "awinic,pwm-frequency",
+					       &pwm_frequency);
+		if (ret)
+			return dev_err_probe(dev, ret, "Invalid PWM frequency\n");
+	}
+	for (i = 0; i < ARRAY_SIZE(aw20144_pwm_frequencies); i++) {
+		if (pwm_frequency == aw20144_pwm_frequencies[i])
+			break;
+	}
+	if (i == ARRAY_SIZE(aw20144_pwm_frequencies))
+		return dev_err_probe(dev, -EINVAL, "Unsupported PWM frequency\n");
+	chip->pwm_freq = i;
+	i = 0;
 	mutex_init(&chip->lock);
 	i2c_set_clientdata(client, chip);
 
