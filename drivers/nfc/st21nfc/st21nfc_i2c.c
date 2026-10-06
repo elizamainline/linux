@@ -14,6 +14,9 @@
 
 #define ST21NFC_MODE_SET_OID	0x02
 #define ST21NFC_MODE_RESET_TIMEOUT_MS	500
+#define ST21NFC_POWER_ON_TIMEOUT_MS	500
+#define ST21NFC_HEADER_READ_ATTEMPTS	10
+#define ST21NFC_RF_PROTOCOL_MIFARE	0x90
 
 #define ST21NFC_PROTOCOLS (NFC_PROTO_JEWEL_MASK | NFC_PROTO_MIFARE_MASK | \
 			   NFC_PROTO_FELICA_MASK | NFC_PROTO_ISO14443_MASK | \
@@ -24,6 +27,7 @@ struct st21nfc_i2c {
 	struct i2c_client *client;
 	struct nci_dev *ndev;
 	struct gpio_desc *reset;
+	struct completion power_on;
 	struct completion mode_response;
 	struct completion mode_reset;
 	u8 mode_status;
@@ -35,9 +39,25 @@ static int st21nfc_open(struct nci_dev *ndev)
 	struct st21nfc_i2c *priv = nci_get_drvdata(ndev);
 
 	/* Reset is active low. Release it before accepting controller IRQs. */
+	reinit_completion(&priv->power_on);
 	gpiod_set_value_cansleep(priv->reset, 0);
 	msleep(80);
 	enable_irq(priv->client->irq);
+
+	return 0;
+}
+
+static int st21nfc_init(struct nci_dev *ndev)
+{
+	struct st21nfc_i2c *priv = nci_get_drvdata(ndev);
+
+	/* Do not let the power-on notification complete CORE_RESET_CMD. */
+	if (!wait_for_completion_timeout(&priv->power_on,
+			msecs_to_jiffies(ST21NFC_POWER_ON_TIMEOUT_MS))) {
+		dev_err(&priv->client->dev, "power-on reset notification not received\n");
+		return -ETIMEDOUT;
+	}
+	flush_workqueue(ndev->rx_wq);
 
 	return 0;
 }
@@ -100,7 +120,7 @@ static const struct nci_driver_ops st21nfc_prop_ops[] = {
 	},
 };
 
-static int st21nfc_setup(struct nci_dev *ndev)
+static int st21nfc_post_setup(struct nci_dev *ndev)
 {
 	struct st21nfc_i2c *priv = nci_get_drvdata(ndev);
 	static const u8 mode_on[] = { 0x2f, 0x02, 0x02, 0x02, 0x01 };
@@ -158,11 +178,19 @@ out:
 	return ret;
 }
 
+static u32 st21nfc_get_rfprotocol(struct nci_dev *ndev, u8 rf_protocol)
+{
+	return rf_protocol == ST21NFC_RF_PROTOCOL_MIFARE ?
+		NFC_PROTO_MIFARE_MASK : 0;
+}
+
 static const struct nci_ops st21nfc_ops = {
 	.open = st21nfc_open,
 	.close = st21nfc_close,
 	.send = st21nfc_send,
-	.setup = st21nfc_setup,
+	.init = st21nfc_init,
+	.post_setup = st21nfc_post_setup,
+	.get_rfprotocol = st21nfc_get_rfprotocol,
 	.prop_ops = st21nfc_prop_ops,
 	.n_prop_ops = ARRAY_SIZE(st21nfc_prop_ops),
 };
@@ -176,7 +204,13 @@ static irqreturn_t st21nfc_irq_thread(int irq, void *data)
 	unsigned int i;
 	int ret;
 
-	ret = i2c_master_recv(client, hdr, sizeof(hdr));
+	/* IRQ can remain high while the controller restarts after mode set. */
+	for (i = 0; i < ST21NFC_HEADER_READ_ATTEMPTS; i++) {
+		ret = i2c_master_recv(client, hdr, sizeof(hdr));
+		if (ret != -ENXIO && ret != -EREMOTEIO)
+			break;
+		usleep_range(2000, 3000);
+	}
 	if (ret != sizeof(hdr)) {
 		dev_err_ratelimited(&client->dev, "NCI header read failed: %d\n", ret);
 		return IRQ_HANDLED;
@@ -208,6 +242,12 @@ static irqreturn_t st21nfc_irq_thread(int irq, void *data)
 	}
 
 	dev_dbg(&client->dev, "RX: %*ph\n", skb->len, skb->data);
+	if (hdr[0] == 0x60 && hdr[1] == 0x00 && hdr[2] &&
+	    skb->data[NCI_CTRL_HDR_SIZE] == 0x01) {
+		nci_recv_frame(priv->ndev, skb);
+		complete(&priv->power_on);
+		return IRQ_HANDLED;
+	}
 	nci_recv_frame(priv->ndev, skb);
 	if (hdr[0] == 0x60 && hdr[1] == 0x00 &&
 	    READ_ONCE(priv->waiting_for_mode_reset))
@@ -215,9 +255,17 @@ static irqreturn_t st21nfc_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t st21nfc_clkreq_irq(int irq, void *data)
+{
+	/* The GPIO wakeup route forwards CLKREQ to the always-on controller. */
+	return IRQ_HANDLED;
+}
+
 static int st21nfc_probe(struct i2c_client *client)
 {
 	struct st21nfc_i2c *priv;
+	struct gpio_desc *clkreq;
+	int clkreq_irq;
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
@@ -228,12 +276,30 @@ static int st21nfc_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	priv->client = client;
+	init_completion(&priv->power_on);
 	init_completion(&priv->mode_response);
 	init_completion(&priv->mode_reset);
 	priv->reset = devm_gpiod_get(&client->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->reset))
 		return dev_err_probe(&client->dev, PTR_ERR(priv->reset),
 				     "failed to get reset GPIO\n");
+
+	clkreq = devm_gpiod_get_optional(&client->dev, "clkreq", GPIOD_IN);
+	if (IS_ERR(clkreq))
+		return dev_err_probe(&client->dev, PTR_ERR(clkreq),
+				     "failed to get clock request GPIO\n");
+	if (clkreq) {
+		clkreq_irq = gpiod_to_irq(clkreq);
+		if (clkreq_irq < 0)
+			return clkreq_irq;
+		ret = devm_request_irq(&client->dev, clkreq_irq,
+				      st21nfc_clkreq_irq,
+				      IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				      "st21nfc-clkreq", priv);
+		if (ret)
+			return dev_err_probe(&client->dev, ret,
+					     "failed to request clock request IRQ\n");
+	}
 
 	priv->ndev = nci_allocate_device(&st21nfc_ops, ST21NFC_PROTOCOLS, 0, 0);
 	if (!priv->ndev)
@@ -244,11 +310,11 @@ static int st21nfc_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, priv);
 
 	ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-					st21nfc_irq_thread, IRQF_ONESHOT,
+					st21nfc_irq_thread,
+					IRQF_ONESHOT | IRQF_NO_AUTOEN,
 					dev_name(&client->dev), priv);
 	if (ret)
 		goto free_device;
-	disable_irq(client->irq);
 
 	ret = nci_register_device(priv->ndev);
 	if (ret)
@@ -257,7 +323,6 @@ static int st21nfc_probe(struct i2c_client *client)
 	return 0;
 
 free_irq:
-	enable_irq(client->irq);
 	devm_free_irq(&client->dev, client->irq, priv);
 free_device:
 	nci_free_device(priv->ndev);
@@ -269,7 +334,6 @@ static void st21nfc_remove(struct i2c_client *client)
 	struct st21nfc_i2c *priv = i2c_get_clientdata(client);
 
 	nci_unregister_device(priv->ndev);
-	enable_irq(client->irq);
 	devm_free_irq(&client->dev, client->irq, priv);
 	nci_free_device(priv->ndev);
 }
