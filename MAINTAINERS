@@ -7888,6 +7888,13 @@ T:	git git://linuxtv.org/media.git
 F:	Documentation/devicetree/bindings/media/i2c/dongwoon,dw9807-vcm.yaml
 F:	drivers/media/i2c/dw9807-vcm.c
 
+DONGWOON DW9827C AUTOFOCUS DRIVER
+M:	Oleksii Onchul <oleksiionchul@gmail.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/dongwoon,dw9827c.yaml
+F:	drivers/media/i2c/dw9827c.c
+
 DPAA2 DATAPATH I/O (DPIO) DRIVER
 M:	Ioana Ciornei <ioana.ciornei@nxp.com>
 L:	linux-kernel@vger.kernel.org
