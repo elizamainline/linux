@@ -1276,15 +1276,16 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	led-controller@20 {
+	led-controller@21 {
 		compatible = "awinic,aw20144";
-		reg = <0x20>;
+		reg = <0x21>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		enable-gpios = <&pmxr2230_gpios 8 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&glyph_enable_default>;
 		pinctrl-names = "default";
-		awinic,global-current = <13>;
+		awinic,global-current = <20>;
+		awinic,pwm-frequency = <977>;
 
 #include "eliza-nothing-froggerpro-glyph.dtsi"
 	};
