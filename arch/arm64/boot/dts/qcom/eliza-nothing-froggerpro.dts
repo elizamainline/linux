@@ -385,6 +385,14 @@
 			};
 		};
 	};
+
+	cam_ultrawide_eeprom: eeprom@53 {
+		compatible = "puya,p24u128b", "atmel,24c128";
+		reg = <0x53>;
+		label = "cam-ultrawide-eeprom";
+		read-only;
+		vcc-supply = <&cam_ldo4>;
+	};
 };
 
 &cci0_i2c1 {
@@ -423,6 +431,14 @@
 				link-frequencies = /bits/ 64 <493894737>;
 			};
 		};
+	};
+
+	cam_main_eeprom: eeprom@50 {
+		compatible = "puya,p24c128g", "atmel,24c128";
+		reg = <0x50>;
+		label = "cam-main-eeprom";
+		read-only;
+		vcc-supply = <&cam_ldo4>;
 	};
 };
 
@@ -467,6 +483,14 @@
 			};
 		};
 	};
+
+	cam_tele_eeprom: eeprom@51 {
+		compatible = "puya,p24c256f", "atmel,24c256";
+		reg = <0x51>;
+		label = "cam-tele-eeprom";
+		read-only;
+		vcc-supply = <&cam_ldo4>;
+	};
 };
 
 &cci1_i2c1 {
@@ -495,6 +519,14 @@
 				link-frequencies = /bits/ 64 <638700000>;
 			};
 		};
+	};
+
+	cam_front_eeprom: eeprom@52 {
+		compatible = "puya,p24u128b", "atmel,24c128";
+		reg = <0x52>;
+		label = "cam-front-eeprom";
+		read-only;
+		vcc-supply = <&cam_ldo4>;
 	};
 };
 
