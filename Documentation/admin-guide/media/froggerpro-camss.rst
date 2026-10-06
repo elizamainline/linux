@@ -983,4 +983,43 @@ binding/example validation and board validation against the actuator and
 sensor schemas passed. The register encoding, startup/standby commands and
 power delays were compared against both stock variants. A host harness using
 the actual driver core also checked suspend/control behavior and injected
-I2C and regulator failures. Hardware focus validation remains pending.
+I2C and regulator failures.
+
+After booting kernel ``7.3.0-rc6 #49`` with the updated DTB on the same day,
+the actuator bound at ``6-000f`` and exposed the expected focus control. The
+media topology's ancillary link connects ``s5kjn5 6-002d`` to
+``dw9827c 6-000f``. The installed ``media-ctl`` omits this link from its
+legacy topology display; ``MEDIA_IOC_G_TOPOLOGY`` reports it.
+
+Register readback matched positions 150, 300, 450, 600 and 750 exactly:
+``0x0960``, ``0x12c0``, ``0x1c20``, ``0x2580`` and ``0x2ee0``. The control
+register read ``0x00`` while active. Regmap and regulator traces verified the
+initialization sequence, focus restoration on reopen and standby before
+VAF/VIO shutdown. Five additional open/close cycles returned to runtime
+suspend with both supply votes at zero, without I2C errors or kernel faults.
+
+WirePlumber keeps camera subdevices open, including the lens, while its
+libcamera monitor runs. Stop it temporarily for independent capture and
+autosuspend tests, and restart it afterwards::
+
+    systemctl --user stop wireplumber.service
+    # Run the tests, keeping the lens open during optical comparisons.
+    systemctl --user start wireplumber.service
+
+Six three-frame optical captures at positions 150, 300, 450, 600, 750 and
+150, followed by a three-frame color-bar capture, completed at about 30 fps.
+Each buffer contained 15728640 bytes of 4096 by 3072 packed RAW10. Color bars
+decoded correctly. The first optical frames were nearly uniform black;
+the default exposure/gain also gave very little signal above black level
+when aimed at a window. Longer exposure and higher gain produced visible
+optical images.
+
+A subsequent comparison against a stationary phone used exposure 3000 and
+analogue gain 256. Gradually stepping focus through 150, 840, 1500, 2200 and
+3000 sharpened the subject and changed the field of view. Returning to 150
+restored the visibly defocused image. This confirms physical lens movement
+and working manual focus control; the tested values are raw positions, not
+a calibrated focus-distance scale. Each position again produced three
+complete buffers at about 30 fps, and no actuator errors or kernel faults
+were logged. The tests restored focus 150, the original exposure/gain
+settings and the running WirePlumber service.
