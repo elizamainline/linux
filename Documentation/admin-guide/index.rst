@@ -150,6 +150,7 @@ How to configure your hardware within your Linux system.
    dell_rbu
    edid
    gpio/index
+   gps-froggerpro
    hw_random
    laptops/index
    lcd-panel-cgram
