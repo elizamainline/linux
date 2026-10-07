@@ -25,6 +25,7 @@
 	chassis-type = "handset";
 
 	aliases {
+		rtc0 = &pmk8550_rtc;
 		serial0 = &uart13;
 		serial1 = &uart5;
 	};
