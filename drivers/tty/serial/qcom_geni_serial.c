@@ -2101,7 +2101,15 @@ static int qcom_geni_serial_suspend(struct device *dev)
 		geni_icc_set_bw(&port->se);
 	}
 
+	/*
+	 * Serial core sets uport->suspended before stopping RX and calling
+	 * shutdown(). Mask the IRQ across that transition: cancel completions
+	 * would otherwise remain pending while the ISR returns IRQ_NONE.
+	 * shutdown() takes its own disable reference, which startup() balances.
+	 */
+	disable_irq(uport->irq);
 	ret = uart_suspend_port(private_data->drv, uport);
+	enable_irq(uport->irq);
 	if (ret)
 		return ret;
 
