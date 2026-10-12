@@ -3001,6 +3001,10 @@ static void ufs_qcom_remove(struct platform_device *pdev)
 		platform_device_msi_free_irqs_all(hba->dev);
 }
 
+static const struct ufs_qcom_drvdata ufs_qcom_eliza_drvdata = {
+	.no_phy_retention = true,
+};
+
 static const struct ufs_qcom_drvdata ufs_qcom_milos_drvdata = {
 	.no_phy_retention = true,
 };
@@ -3016,6 +3020,7 @@ static const struct ufs_qcom_drvdata ufs_qcom_sa8255p_drvdata = {
 
 static const struct of_device_id ufs_qcom_of_match[] __maybe_unused = {
 	{ .compatible = "qcom,ufshc" },
+	{ .compatible = "qcom,eliza-ufshc", .data = &ufs_qcom_eliza_drvdata },
 	{ .compatible = "qcom,milos-ufshc", .data = &ufs_qcom_milos_drvdata },
 	{ .compatible = "qcom,sm8550-ufshc", .data = &ufs_qcom_sm8550_drvdata },
 	{ .compatible = "qcom,sm8650-ufshc", .data = &ufs_qcom_sm8550_drvdata },
