@@ -539,6 +539,7 @@
 };
 
 &wifi {
+	qcom,ath11k-calibration-variant = "Nothing_FroggerPro";
 	qcom,skip-cal-data;
 	vdd-cx-mx-supply = <&vreg_s3b>;
 	vdd-1.8-xo-supply = <&vreg_s1b>;
