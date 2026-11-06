@@ -1921,6 +1921,8 @@ static struct gdsc mdss_gdsc = {
 	.clk_dis_wait_val = 0xf,
 	.pd = {
 		.name = "mdss_gdsc",
+		/* Allow runtime PM to discard the bootloader's display state. */
+		.flags = GENPD_FLAG_NO_STAY_ON,
 	},
 	.pwrsts = PWRSTS_OFF_ON,
 	.flags = POLL_CFG_GDSCR | HW_CTRL | RETAIN_FF_ENABLE,
